@@ -20,18 +20,19 @@ bool StateMachine::init(){
 	
 	beacons_pos_subscriber_ = n_.subscribe<marvelmind_nav::beacon_pos_a>("beacons_pos_a", 10, &StateMachine::beaconsPosCallback, this);
 	current_pos_subscriber_ = n_.subscribe<marvelmind_nav::hedge_pos>("hedge_pos", 10, &StateMachine::currentPosCallback, this);
-	waypoint_timer_ = n_.createTimer(ros::Duration(0.2), StateMachine::waypointRoutine);
+	//waypoint_timer_ = n_.createTimer(ros::Duration(0.2), StateMachine::waypointRoutine);
 	current_state_ = new StartState(this);
 	return true;
 }
 
-void StateMachine::waypointRoutine(const ros::TimerEvent& event){
-	if (is_running_waypoint_){
-		//check if feedback idle
-		
-		//run and dequeue
-	}
-}
+// void StateMachine::waypointRoutine(const ros::TimerEvent& event){
+	// if (is_running_waypoint_ && goal_reached_){
+		// //check if feedback idle
+		// Position goal = move_goals_.front();
+		// //run and dequeue
+		// move_goals_.pop_front();
+	// }
+// }
 
 void StateMachine::update(){
 	current_state_->stateUpdate();
@@ -64,15 +65,15 @@ void StateMachine::generateMoveGoals(){
 	for (p.x=min_x_bound_; p.x<=max_x_bound_; p.x+=x_step_){
 		if (is_going_up){
 			p.y = min_y_bound_;
-			move_goals_.push_back(p);
+			move_goals_.push(p);
 			p.y = max_y_bound_;
-			move_goals_.push_back(p);
+			move_goals_.push(p);
 		}
 		else{
 			p.y = max_y_bound_;
-			move_goals_.push_back(p);
+			move_goals_.push(p);
 			p.y = min_y_bound_;
-			move_goals_.push_back(p);
+			move_goals_.push(p);
 		}
 		is_going_up = !is_going_up;
 	}

@@ -22,15 +22,22 @@ void StartState::onInput(uint8_t input){}
 RunState::RunState(StateMachine *machine) : State(machine){
 	ROS_INFO("Running navigation for %d points", machine->move_goals_.size());
 	machine->is_running_waypoint_ = true;	//start listening to movebase feedback
-	//send 
 }
 void RunState::stateUpdate(){
-	if (machine->is_moving_){
-		if (ros::Time::now() - machine->current_pos_.last_updated > machine->last_updated_timeout_){
-			ROS_ERROR("Beacon signal lost. Waiting recovery...");
+	if (machine->is_running_waypoint_){
+		if (machine->goal_reached_){
+			//check if feedback idle
+			Position goal = machine->move_goals_.front();
+			//run and dequeue
+			machine->move_goals_.pop();
 		}
-		if (machine->is_immobile_){
-			
+		else{
+			if (ros::Time::now() - machine->current_pos_.last_updated > machine->last_updated_timeout_){
+				ROS_ERROR("Beacon signal lost. Waiting recovery...");
+			}
+			if (machine->is_immobile_){
+				
+			}
 		}
 	}
 }

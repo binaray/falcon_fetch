@@ -2,6 +2,7 @@
 #define StateMachine_h
 
 #include "ros/ros.h"
+#include <queue>
 #include <falcon_prog/states.h>
 #include "std_msgs/String.h"
 #include "marvelmind_nav/hedge_pos.h"
@@ -40,8 +41,9 @@ class StateMachine{
 		float max_y_bound_;
 		std::queue<Position> move_goals_;
 		
-		bool is_moving_ = false;
 		bool is_running_waypoint_ = false;
+		bool goal_reached_ = false;
+		bool is_immobile_ = false;
 		
 		//startup constants
 		float x_step_;
@@ -58,13 +60,13 @@ class StateMachine{
 		ros::NodeHandle n_;
 		ros::Subscriber beacons_pos_subscriber_;
 		ros::Subscriber current_pos_subscriber_;
-		ros::Timer waypoint_timer_;
+		// ros::Timer waypoint_timer_;
 		void beaconsPosCallback(const marvelmind_nav::beacon_pos_a msg);
 		void currentPosCallback(const marvelmind_nav::hedge_pos msg);
 		
 		bool init();
 		void generateMoveGoals();
-		void waypointRoutine(const ros::TimerEvent& event)
+		// void waypointRoutine(const ros::TimerEvent& event)
 };
 
 #endif
