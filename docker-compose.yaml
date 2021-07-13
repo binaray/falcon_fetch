@@ -1,0 +1,18 @@
+version: "3.7"
+services:
+  falcon_fetch:
+    build: .
+    # ports:
+      # - 8080:8080
+      # - 5000:5000
+    volumes:
+      - ./:/catkin_ws/src/falcon_fetch
+    # devices:
+      # - "/dev/snd:/dev/snd"
+      # - "/dev/video0:/dev/video0"
+    command:
+      - roscore
+    environment:
+      DISPLAY:
+      QT_X11_NO_MITSHM: 1
+

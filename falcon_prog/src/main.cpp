@@ -9,33 +9,95 @@ StateMachine::StateMachine(){
 StateMachine::~StateMachine(){delete current_state_;}
 
 bool StateMachine::init(){
+	ros::NodeHandle pn("~");
+	pn.param("x_step", x_step_, float(0.1));
+	pn.param("bound_padding", bound_padding_, float(0.1));
+	pn.param("bound_padding", bound_padding_, float(0.1));
+	pn.param("bound_padding", bound_padding_, float(0.1));
+	
+	last_updated_timeout_ = ros::Duration(5);
+	immobile_timeout_ = ros::Duration(5);
+	
 	beacons_pos_subscriber_ = n_.subscribe<marvelmind_nav::beacon_pos_a>("beacons_pos_a", 10, &StateMachine::beaconsPosCallback, this);
 	current_pos_subscriber_ = n_.subscribe<marvelmind_nav::hedge_pos>("hedge_pos", 10, &StateMachine::currentPosCallback, this);
+	waypoint_timer_ = n_.createTimer(ros::Duration(0.2), StateMachine::waypointRoutine);
+	current_state_ = new StartState(this);
 	return true;
+}
+
+void StateMachine::waypointRoutine(const ros::TimerEvent& event){
+	if (is_running_waypoint_){
+		//check if feedback idle
+		
+		//run and dequeue
+	}
 }
 
 void StateMachine::update(){
 	current_state_->stateUpdate();
 }
 
-void StateMachine::beaconsPosCallback(const marvelmind_nav::beacon_pos_a msg){
-	BeaconPos data;
-	data.x_ = msg.x_m;
-	data.y_ = msg.y_m;
-	data.freshness_ = ros::Time::now();
+void StateMachine::generateMoveGoals(){
+	// First generate arbitrary rectangle from min/max points
+	auto it = beacons_pos_.cbegin();
+	it++;
+	Position min_point = (*it).second;
+	Position max_point = (*it).second;
+	for (; it!=beacons_pos_.cend(); it++){
+		if ((*it).second.x < min_point.x)
+			min_point.x = (*it).second.x;
+		if ((*it).second.y < min_point.y)
+			max_point.x = (*it).second.x;
+		if ((*it).second.x > max_point.x)
+			max_point.x = (*it).second.x;
+		if ((*it).second.y > max_point.y)
+			max_point.x = (*it).second.x;
+	}
+	min_x_bound_ = min_point.x + bound_padding_;
+	min_y_bound_ = min_point.y + bound_padding_;
+	max_x_bound_ = max_point.x - bound_padding_;
+	max_y_bound_ = max_point.y - bound_padding_;
 	
-  beacons_pos_.insert (std::pair<int,BeaconPos>(msg.address,data));
-	//beacons_pos_[msg.address] = data;
-	/*
-	it_ = beacons_pos_.find(msg.address);
-	if (it != beacons_pos_.end())
-		beacons_pos_.erase (it);*/
+	// Generate zig-zag path from rectangle starting from left to right from bottom to top first
+	Position p;
+	bool is_going_up = true;
+	for (p.x=min_x_bound_; p.x<=max_x_bound_; p.x+=x_step_){
+		if (is_going_up){
+			p.y = min_y_bound_;
+			move_goals_.push_back(p);
+			p.y = max_y_bound_;
+			move_goals_.push_back(p);
+		}
+		else{
+			p.y = max_y_bound_;
+			move_goals_.push_back(p);
+			p.y = min_y_bound_;
+			move_goals_.push_back(p);
+		}
+		is_going_up = !is_going_up;
+	}
+}
+
+void StateMachine::beaconsPosCallback(const marvelmind_nav::beacon_pos_a msg){
+	Position data;
+	data.x = msg.x_m;
+	data.y = msg.y_m;
+	data.last_updated = ros::Time::now();
+	
+	if (!is_beacons_init_){
+		//beacons_pos_.insert (std::pair<int,Position>(msg.address,data));
+		beacons_pos_[msg.address] = data;
+		if (beacons_pos_.size()>=3){	//3 for testing; 4 for production
+			generateMoveGoals();
+			is_beacons_init_ = true;
+		}
+	}
 }
 
 void StateMachine::currentPosCallback(const marvelmind_nav::hedge_pos msg){
-	current_pos_.x_ = msg.x_m;
-	current_pos_.y_ = msg.y_m;
-	current_pos_.freshness_ = ros::Time::now();
+	current_pos_.x = msg.x_m;
+	current_pos_.y = msg.y_m;
+	current_pos_.last_updated = ros::Time::now();
 }
 
 int main(int argc, char **argv){

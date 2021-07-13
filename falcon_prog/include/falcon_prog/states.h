@@ -17,4 +17,18 @@ class State {
     StateMachine *machine;
 };
 
+class StartState : public State {
+	public:
+    StartState(StateMachine *machine);
+  	void stateUpdate();
+  	void onInput( uint8_t input);
+};
+
+class RunState : public State {
+	public:
+    RunState(StateMachine *machine);
+  	void stateUpdate();
+  	void onInput( uint8_t input);
+};
+
 #endif
