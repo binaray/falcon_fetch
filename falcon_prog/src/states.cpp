@@ -36,7 +36,7 @@ void RunState::stateUpdate(){
 				ROS_ERROR("Beacon signal lost. Waiting recovery...");
 			}
 			if (machine->is_immobile_){
-				
+				ROS_WARN("Robot is immobile");
 			}
 		}
 	}

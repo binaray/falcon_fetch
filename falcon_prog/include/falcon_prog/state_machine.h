@@ -3,6 +3,7 @@
 
 #include "ros/ros.h"
 #include <queue>
+#include <math.h> 
 #include <falcon_prog/states.h>
 #include "std_msgs/String.h"
 #include "marvelmind_nav/hedge_pos.h"
@@ -35,7 +36,8 @@ class StateMachine{
 		bool is_beacons_init_ = false;
 		std::map<int,Position> beacons_pos_;
 		Position current_pos_;
-		float min_x_bound_;
+		Position *stationary_pos_;	//stores earliest stationary point to check for immobility
+		float min_x_bound_;	//inner rectangle bound inside beacon area (operational area for robot)
 		float min_y_bound_;
 		float max_x_bound_;
 		float max_y_bound_;
@@ -48,6 +50,7 @@ class StateMachine{
 		//startup constants
 		float x_step_;
 		float bound_padding_;
+		float stationary_threshold_;
 		ros::Duration last_updated_timeout_;
 		ros::Duration immobile_timeout_;
 		

@@ -6,7 +6,10 @@ StateMachine::StateMachine(){
   bool init_result = init();
   ROS_ASSERT(init_result);
 }
-StateMachine::~StateMachine(){delete current_state_;}
+StateMachine::~StateMachine(){
+	delete current_state_;
+	delete stationary_pos_;
+}
 
 bool StateMachine::init(){
 	ros::NodeHandle pn("~");
@@ -14,9 +17,12 @@ bool StateMachine::init(){
 	pn.param("bound_padding", bound_padding_, float(0.1));
 	pn.param("bound_padding", bound_padding_, float(0.1));
 	pn.param("bound_padding", bound_padding_, float(0.1));
+	pn.param("stationary_threshold", stationary_threshold_, float(0.1));
 	
 	last_updated_timeout_ = ros::Duration(5);
 	immobile_timeout_ = ros::Duration(5);
+	
+	stationary_pos_ = 0;
 	
 	beacons_pos_subscriber_ = n_.subscribe<marvelmind_nav::beacon_pos_a>("beacons_pos_a", 10, &StateMachine::beaconsPosCallback, this);
 	current_pos_subscriber_ = n_.subscribe<marvelmind_nav::hedge_pos>("hedge_pos", 10, &StateMachine::currentPosCallback, this);
@@ -99,6 +105,25 @@ void StateMachine::currentPosCallback(const marvelmind_nav::hedge_pos msg){
 	current_pos_.x = msg.x_m;
 	current_pos_.y = msg.y_m;
 	current_pos_.last_updated = ros::Time::now();
+	
+	if (!stationary_pos_){
+		stationary_pos_ = new Position;
+		stationary_pos_->x = current_pos_.x;
+		stationary_pos_->y = current_pos_.y;
+		stationary_pos_->last_updated = current_pos_.last_updated;
+	}
+	else{
+		float d = sqrt(pow((stationary_pos_->x - current_pos_.x),2)+pow((stationary_pos_->y - current_pos_.y),2));
+		if (d > stationary_threshold_){
+			is_immobile_ = false;
+			stationary_pos_->x = current_pos_.x;
+			stationary_pos_->y = current_pos_.y;
+			stationary_pos_->last_updated = current_pos_.last_updated;			
+		}
+		else if (current_pos_.last_updated - stationary_pos_->last_updated > immobile_timeout_){
+			is_immobile_ = true;
+		}
+	}
 }
 
 int main(int argc, char **argv){
