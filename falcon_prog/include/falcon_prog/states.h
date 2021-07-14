@@ -31,4 +31,12 @@ class RunState : public State {
   	void onInput( uint8_t input);
 };
 
+class EndState : public State {
+	public:
+    EndState(StateMachine *machine);
+  	void stateUpdate();
+  	void onInput( uint8_t input);
+};
+
+
 #endif

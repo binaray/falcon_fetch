@@ -48,6 +48,7 @@ class StateMachine{
 		bool is_immobile_ = false;
 		
 		//startup constants
+		int stationary_beacon_count_;
 		float x_step_;
 		float bound_padding_;
 		float stationary_threshold_;

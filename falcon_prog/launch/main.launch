@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+	<arg name="beacon_port" default="/dev/ttyACM0"/>
+	<arg name="baud_rate" default="9600"/>
+
+	<node name="falcon_prog" pkg="falcon_prog" type="falcon_prog_node" output="screen">
+    <param name="x_step" value="0.2"/>
+    <param name="bound_padding" value="0.1"/>
+    <param name="stationary_threshold" value="0.02"/>
+  </node>
+	<node name="marvelmind_nav" pkg="marvelmind_nav" type="hedge_rcv_bin" args="$(arg beacon_port) $(arg baud_rate)"/>
+</launch>

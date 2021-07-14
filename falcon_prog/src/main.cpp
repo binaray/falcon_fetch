@@ -13,9 +13,8 @@ StateMachine::~StateMachine(){
 
 bool StateMachine::init(){
 	ros::NodeHandle pn("~");
+	pn.param("stationary_beacon_count", stationary_beacon_count_, int(3));	//min beacons to start program
 	pn.param("x_step", x_step_, float(0.1));
-	pn.param("bound_padding", bound_padding_, float(0.1));
-	pn.param("bound_padding", bound_padding_, float(0.1));
 	pn.param("bound_padding", bound_padding_, float(0.1));
 	pn.param("stationary_threshold", stationary_threshold_, float(0.1));
 	
@@ -94,7 +93,7 @@ void StateMachine::beaconsPosCallback(const marvelmind_nav::beacon_pos_a msg){
 	if (!is_beacons_init_){
 		//beacons_pos_.insert (std::pair<int,Position>(msg.address,data));
 		beacons_pos_[msg.address] = data;
-		if (beacons_pos_.size()>=3){	//3 for testing; 4 for production
+		if (beacons_pos_.size()>=stationary_beacon_count_){
 			generateMoveGoals();
 			is_beacons_init_ = true;
 		}
