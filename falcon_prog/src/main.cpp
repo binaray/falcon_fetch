@@ -1,5 +1,7 @@
 #include <falcon_prog/state_machine.h>
 
+#define SCALE_HEDGE 3.0
+
 State *StateMachine::current_state_ = 0;
 
 StateMachine::StateMachine(){
@@ -20,27 +22,97 @@ bool StateMachine::init(){
 	
 	last_updated_timeout_ = ros::Duration(5);
 	immobile_timeout_ = ros::Duration(5);
+	marker_frame_ = "my_frame";
 	
 	stationary_pos_ = 0;
 	
 	beacons_pos_subscriber_ = n_.subscribe<marvelmind_nav::beacon_pos_a>("beacons_pos_a", 10, &StateMachine::beaconsPosCallback, this);
 	current_pos_subscriber_ = n_.subscribe<marvelmind_nav::hedge_pos>("hedge_pos", 10, &StateMachine::currentPosCallback, this);
-	//waypoint_timer_ = n_.createTimer(ros::Duration(0.2), StateMachine::waypointRoutine);
+	rviz_marker_publisher_ = n_.advertise<visualization_msgs::Marker>("visualization_marker", 1);	// Declare publisher for rviz visualization
 	current_state_ = new StartState(this);
 	return true;
 }
 
-// void StateMachine::waypointRoutine(const ros::TimerEvent& event){
-	// if (is_running_waypoint_ && goal_reached_){
-		// //check if feedback idle
-		// Position goal = move_goals_.front();
-		// //run and dequeue
-		// move_goals_.pop_front();
-	// }
-// }
-
 void StateMachine::update(){
 	current_state_->stateUpdate();
+}
+
+void StateMachine::showRvizMoveGoals(){
+	if (rviz_marker_publisher_.getNumSubscribers() < 1) return;
+
+	visualization_msgs::Marker marker;
+	// Set the frame ID and timestamp.  See the TF tutorials for information on these.
+    marker.header.frame_id = marker_frame_;
+    marker.header.stamp = ros::Time::now();
+    marker.ns = "basic_shapes";
+    marker.type = visualization_msgs::Marker::CUBE;
+	
+	// first delete all existing markers
+	marker.action = visualization_msgs::Marker::DELETEALL;
+	rviz_marker_publisher_.publish(marker);
+	
+    // Set the marker action.  Options are ADD, DELETE, and new in ROS Indigo: 3 (DELETEALL)
+    marker.action = visualization_msgs::Marker::ADD;
+
+    // Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
+	marker.pose.orientation.x = 0.0;
+	marker.pose.orientation.y = 0.0;
+	marker.pose.orientation.z = 0.0;
+	marker.pose.orientation.w = 1.0;
+
+    // Set the scale of the marker -- 1x1x1 here means 1m on a side
+    marker.scale.x = 0.05*SCALE_HEDGE;
+    marker.scale.y = 0.05*SCALE_HEDGE;
+    marker.scale.z = 0.02*SCALE_HEDGE;
+    // Set the color -- be sure to set alpha to something non-zero!
+	marker.color.r = 1.0f;
+	marker.color.g = 0.0f;
+	marker.color.b = 0.0f;
+    marker.color.a = 1.0;
+    marker.lifetime = ros::Duration(0); //-forever- 
+	
+	for (int i=0; i<move_goals_.size(); i++){
+		marker.id = i;	// index used as marker address
+	    marker.pose.position.x = move_goals_[i].x;
+		marker.pose.position.y = move_goals_[i].y;
+		marker.pose.position.z = 0;
+		rviz_marker_publisher_.publish(marker);
+	}
+}
+
+void StateMachine::updateRvizMoveGoal(int address, int status){
+	if (rviz_marker_publisher_.getNumSubscribers() < 1) return;
+
+	visualization_msgs::Marker marker;
+	// Set the frame ID and timestamp.  See the TF tutorials for information on these.
+	marker.header.frame_id = marker_frame_;
+	marker.header.stamp = ros::Time::now();
+	marker.ns = "basic_shapes";
+	marker.type = visualization_msgs::Marker::CUBE;
+    marker.action = visualization_msgs::Marker::ADD;
+
+    // Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
+	marker.pose.orientation.x = 0.0;
+	marker.pose.orientation.y = 0.0;
+	marker.pose.orientation.z = 0.0;
+	marker.pose.orientation.w = 1.0;
+
+    // Set the scale of the marker -- 1x1x1 here means 1m on a side
+    marker.scale.x = 0.05*SCALE_HEDGE;
+    marker.scale.y = 0.05*SCALE_HEDGE;
+    marker.scale.z = 0.02*SCALE_HEDGE;
+    // Set the color -- be sure to set alpha to something non-zero!
+	marker.color.r = 0.5f;
+	marker.color.g = 0.5f;
+	marker.color.b = 0.5f;
+    marker.color.a = 1.0;
+    marker.lifetime = ros::Duration(0); //-forever- 
+	
+	marker.id = address;
+	marker.pose.position.x = move_goals_[address].x;
+	marker.pose.position.y = move_goals_[address].y;
+	marker.pose.position.z = 0;
+	rviz_marker_publisher_.publish(marker);
 }
 
 void StateMachine::generateMoveGoals(){
@@ -70,18 +142,19 @@ void StateMachine::generateMoveGoals(){
 	for (p.x=min_x_bound_; p.x<=max_x_bound_; p.x+=x_step_){
 		if (is_going_up){
 			p.y = min_y_bound_;
-			move_goals_.push(p);
+			move_goals_.push_back(p);
 			p.y = max_y_bound_;
-			move_goals_.push(p);
+			move_goals_.push_back(p);
 		}
 		else{
 			p.y = max_y_bound_;
-			move_goals_.push(p);
+			move_goals_.push_back(p);
 			p.y = min_y_bound_;
-			move_goals_.push(p);
+			move_goals_.push_back(p);
 		}
 		is_going_up = !is_going_up;
 	}
+	showRvizMoveGoals();
 }
 
 void StateMachine::beaconsPosCallback(const marvelmind_nav::beacon_pos_a msg){

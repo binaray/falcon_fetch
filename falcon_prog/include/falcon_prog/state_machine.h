@@ -6,6 +6,7 @@
 #include <math.h> 
 #include <falcon_prog/states.h>
 #include "std_msgs/String.h"
+#include <visualization_msgs/Marker.h>
 #include "marvelmind_nav/hedge_pos.h"
 #include "marvelmind_nav/hedge_pos_a.h"
 #include "marvelmind_nav/hedge_pos_ang.h"
@@ -31,6 +32,7 @@ class StateMachine{
 		StateMachine();
 		~StateMachine();
 		void update();
+		void updateRvizMoveGoal(int address, int status);
 		
 		//runtime variables
 		bool is_beacons_init_ = false;
@@ -41,7 +43,8 @@ class StateMachine{
 		float min_y_bound_;
 		float max_x_bound_;
 		float max_y_bound_;
-		std::queue<Position> move_goals_;
+		std::vector<Position> move_goals_;
+		int current_goal_index_ = -1;	//index to current goal in move_goals_- also used as rviz address reference
 		
 		bool is_running_waypoint_ = false;
 		bool goal_reached_ = false;
@@ -55,22 +58,21 @@ class StateMachine{
 		ros::Duration last_updated_timeout_;
 		ros::Duration immobile_timeout_;
 		
-		Position current_goal_;
-		Position prev_goal_;
-		
 	private:		
 		static State *current_state_;
+		std::string marker_frame_;
 		
 		ros::NodeHandle n_;
 		ros::Subscriber beacons_pos_subscriber_;
 		ros::Subscriber current_pos_subscriber_;
-		// ros::Timer waypoint_timer_;
+		ros::Publisher rviz_marker_publisher_;
+
 		void beaconsPosCallback(const marvelmind_nav::beacon_pos_a msg);
 		void currentPosCallback(const marvelmind_nav::hedge_pos msg);
 		
 		bool init();
 		void generateMoveGoals();
-		// void waypointRoutine(const ros::TimerEvent& event)
+		void showRvizMoveGoals();
 };
 
 #endif

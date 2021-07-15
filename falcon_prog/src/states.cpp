@@ -33,9 +33,8 @@ void RunState::stateUpdate(){
 			if (machine->move_goals_.empty())
 				return setState(new EndState(machine));
 			//run and dequeue
-			Position goal = machine->move_goals_.front();
-			machine->move_goals_.pop();
-			ROS_INFO("Goal set. Remainding: %d points", machine->move_goals_.size());
+			//setGoal
+			ROS_INFO("Goal set. Remainding: %d points", machine->move_goals_.size() - machine->current_goal_index_);
 		}
 		else{
 			if (ros::Time::now() - machine->current_pos_.last_updated > machine->last_updated_timeout_){
