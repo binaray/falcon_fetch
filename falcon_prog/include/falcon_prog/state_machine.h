@@ -92,6 +92,7 @@ class StateMachine{
 		void generateMoveGoals();
 		void showRvizMoveGoals();
 		void updateRvizMoveGoal(int address, int status);
+		void showRvizPos(Position p, int address, bool is_hedge);
 };
 
 #endif
