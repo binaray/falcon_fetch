@@ -9,6 +9,7 @@ project(falcon_prog)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   marvelmind_nav
+  geometry_msgs
   roscpp
 )
 
@@ -104,7 +105,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES falcon_prog
-  CATKIN_DEPENDS marvelmind_nav roscpp
+  CATKIN_DEPENDS marvelmind_nav roscpp geometry_msgs
 #  DEPENDS system_lib
 )
 

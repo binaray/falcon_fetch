@@ -4,6 +4,16 @@
 
 State *StateMachine::current_state_ = 0;
 
+float quaternionToRadian(Quaternion q){
+	float siny_cosp = 2 * (q.w * q.z);
+    float cosy_cosp = 1 - 2 * (q.z * q.z);
+    return std::atan2(siny_cosp, cosy_cosp);
+}
+
+float distanceBetweenPoints(Position a, Position b){
+	return sqrt(pow((a.x - b.x),2)+pow((a.y - b.y),2));
+}
+
 StateMachine::StateMachine(){
   bool init_result = init();
   ROS_ASSERT(init_result);
@@ -19,6 +29,9 @@ bool StateMachine::init(){
 	pn.param("x_step", x_step_, float(0.1));
 	pn.param("bound_padding", bound_padding_, float(0.1));
 	pn.param("stationary_threshold", stationary_threshold_, float(0.1));
+	pn.param("rotation_threshold", stationary_threshold_, float(0.05));
+	pn.param("distance_threshold", distance_threshold_, float(0.02));
+	pn.param("differential_movement_threshold", differential_movement_threshold_, float(0.1));
 	
 	last_updated_timeout_ = ros::Duration(5);
 	immobile_timeout_ = ros::Duration(5);
@@ -27,8 +40,9 @@ bool StateMachine::init(){
 	stationary_pos_ = 0;
 	
 	beacons_pos_subscriber_ = n_.subscribe<marvelmind_nav::beacon_pos_a>("beacons_pos_a", 10, &StateMachine::beaconsPosCallback, this);
-	current_pos_subscriber_ = n_.subscribe<marvelmind_nav::hedge_pos>("hedge_pos", 10, &StateMachine::currentPosCallback, this);
+	current_pos_subscriber_ = n_.subscribe<marvelmind_nav::hedge_imu_fusion>("hedge_imu_fusion", 10, &StateMachine::currentPosCallback, this);
 	rviz_marker_publisher_ = n_.advertise<visualization_msgs::Marker>("visualization_marker", 1);	// Declare publisher for rviz visualization
+	cmd_velocity_publisher_  = n_.advertise<geometry_msgs::Twist>("cmd_vel", 10);
 	current_state_ = new StartState(this);
 	return true;
 }
@@ -157,6 +171,68 @@ void StateMachine::generateMoveGoals(){
 	showRvizMoveGoals();
 }
 
+bool StateMachine::publishNextMoveGoal(){
+	current_goal_index_++;
+	if (current_goal_index_ >= move_goals_.size()){
+		ROS_INFO("All goals reached");
+		return false;
+	}
+	goal_reached_ = false;
+	ROS_INFO("Goal set. Remainding: %d points", move_goals_.size() - current_goal_index_);
+	return true;
+}
+
+float StateMachine::angleDifferenceToPoint(Position p){
+	p.x -= current_pos_.x;
+	p.y -= current_pos_.y;
+	
+	float angle = atan2(p.x, p.y);
+	ROS_INFO("Relative angle from current position: %f", angle);
+	return current_rad_ + angle;
+}
+
+void StateMachine::moveTowardsGoal(){
+	geometry_msgs::Twist cmd_vel_msg;	
+	
+	if (distanceBetweenPoints(current_pos_, move_goals_[current_goal_index_]) > distance_threshold_){		
+		//check robot direction with goal
+		float angle = angleDifferenceToPoint(move_goals_[current_goal_index_]);
+		bool is_differential_movement;
+		
+		//rotate towards goal
+		if (angle > rotation_threshold_){
+			if (angle > differential_movement_threshold_){
+				is_differential_movement = false;
+				cmd_vel_msg.angular.z = 0.5;
+			}
+			else{
+				is_differential_movement = true;
+				cmd_vel_msg.angular.z = 0.1;
+			}
+		}
+		else if (angle < -rotation_threshold_){
+			if (angle < -differential_movement_threshold_){
+				is_differential_movement = false;
+				cmd_vel_msg.angular.z = -0.5;
+			}
+			else{
+				is_differential_movement = true;
+				cmd_vel_msg.angular.z = -0.1;
+			}
+		}
+		else is_differential_movement = true;
+		
+		// linear movement is only present when angle difference is small enough
+		if (is_differential_movement) cmd_vel_msg.linear.x = 0.5;
+	}
+	else{
+		ROS_INFO("Goal reached.");
+		goal_reached_ = true;
+	}
+		
+	cmd_velocity_publisher_.publish(cmd_vel_msg);
+}
+
 void StateMachine::beaconsPosCallback(const marvelmind_nav::beacon_pos_a msg){
 	Position data;
 	data.x = msg.x_m;
@@ -173,10 +249,16 @@ void StateMachine::beaconsPosCallback(const marvelmind_nav::beacon_pos_a msg){
 	}
 }
 
-void StateMachine::currentPosCallback(const marvelmind_nav::hedge_pos msg){
+void StateMachine::currentPosCallback(const marvelmind_nav::hedge_imu_fusion msg){
 	current_pos_.x = msg.x_m;
 	current_pos_.y = msg.y_m;
 	current_pos_.last_updated = ros::Time::now();
+	
+	current_orientation_.w = msg.qw;
+	current_orientation_.x = msg.qx;
+	current_orientation_.y = msg.qy;
+	current_orientation_.z = msg.qz;
+	current_rad_ = quaternionToRadian(current_orientation_);
 	
 	if (!stationary_pos_){
 		stationary_pos_ = new Position;
