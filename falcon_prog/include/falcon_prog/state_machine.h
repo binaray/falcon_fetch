@@ -6,7 +6,9 @@
 #include <math.h> 
 #include <falcon_prog/states.h>
 #include "std_msgs/String.h"
+#include "geometry_msgs/Twist.h"
 #include <visualization_msgs/Marker.h>
+
 #include "marvelmind_nav/hedge_pos.h"
 #include "marvelmind_nav/hedge_pos_a.h"
 #include "marvelmind_nav/hedge_pos_ang.h"
@@ -24,6 +26,13 @@ struct Position{
 	ros::Time last_updated;
 };
 
+struct Quaternion{
+	float x;
+	float y;
+	float z;
+	float w;
+};
+
 class State;
 
 class StateMachine{
@@ -32,13 +41,18 @@ class StateMachine{
 		StateMachine();
 		~StateMachine();
 		void update();
-		void updateRvizMoveGoal(int address, int status);
+		bool publishNextMoveGoal();
+		float angleDifferenceToPoint(Position p);
+		void moveTowardsGoal();
 		
 		//runtime variables
 		bool is_beacons_init_ = false;
 		std::map<int,Position> beacons_pos_;
 		Position current_pos_;
+		Quaternion current_orientation_;
+		double current_rad_;
 		Position *stationary_pos_;	//stores earliest stationary point to check for immobility
+		
 		float min_x_bound_;	//inner rectangle bound inside beacon area (operational area for robot)
 		float min_y_bound_;
 		float max_x_bound_;
@@ -55,6 +69,9 @@ class StateMachine{
 		float x_step_;
 		float bound_padding_;
 		float stationary_threshold_;
+		float rotation_threshold_;
+		float distance_threshold_;
+		float differential_movement_threshold_;
 		ros::Duration last_updated_timeout_;
 		ros::Duration immobile_timeout_;
 		
@@ -65,14 +82,16 @@ class StateMachine{
 		ros::NodeHandle n_;
 		ros::Subscriber beacons_pos_subscriber_;
 		ros::Subscriber current_pos_subscriber_;
+		ros::Publisher cmd_velocity_publisher_;
 		ros::Publisher rviz_marker_publisher_;
 
 		void beaconsPosCallback(const marvelmind_nav::beacon_pos_a msg);
-		void currentPosCallback(const marvelmind_nav::hedge_pos msg);
+		void currentPosCallback(const marvelmind_nav::hedge_imu_fusion msg);
 		
 		bool init();
 		void generateMoveGoals();
 		void showRvizMoveGoals();
+		void updateRvizMoveGoal(int address, int status);
 };
 
 #endif

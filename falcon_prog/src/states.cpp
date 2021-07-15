@@ -24,30 +24,31 @@ void StartState::onInput(uint8_t input){}
 
 RunState::RunState(StateMachine *machine) : State(machine){
 	ROS_INFO("Running navigation for %d points", machine->move_goals_.size());
-	machine->is_running_waypoint_ = true;	//start listening to movebase feedback
+	machine->current_goal_index_ = -1;	
+	//machine->is_running_waypoint_ = true;	//start listening to movebase feedback
 	machine->goal_reached_ = false;
 }
 void RunState::stateUpdate(){
-	if (machine->is_running_waypoint_){
+	//if (machine->is_running_waypoint_){
 		if (machine->goal_reached_){
-			if (machine->move_goals_.empty())
-				return setState(new EndState(machine));
-			//run and dequeue
-			//setGoal
-			ROS_INFO("Goal set. Remainding: %d points", machine->move_goals_.size() - machine->current_goal_index_);
+			if (!machine->publishNextMoveGoal()) return setState(new EndState(machine));
 		}
 		else{
 			if (ros::Time::now() - machine->current_pos_.last_updated > machine->last_updated_timeout_){
-				ROS_ERROR("Beacon signal lost. Waiting recovery...");
+				ROS_ERROR_THROTTLE(1, "Beacon signal lost. Waiting recovery...");
 			}
 			if (machine->is_immobile_){
-				ROS_WARN("Robot is immobile");
+				ROS_WARN_THROTTLE(1, "Robot is immobile");
 			}
+			
+			machine->moveTowardsGoal();
 		}
-	}
+	//}
 }
 void RunState::onInput(uint8_t input){}
 
-EndState::EndState(StateMachine *machine) : State(machine){}
+EndState::EndState(StateMachine *machine) : State(machine){
+	ROS_INFO("Program ended..");
+}
 void EndState::stateUpdate() {}
 void EndState::onInput(uint8_t input){}
