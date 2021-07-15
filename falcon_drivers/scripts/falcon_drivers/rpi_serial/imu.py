@@ -5,17 +5,20 @@
 
 import time
 import board
-import sys
-sys.path.insert(1, '/home/oceania/falcon_ws/src/falcon_drivers/scripts/ros_drivers/rpi_serial')
+#import sys
+#sys.path.insert(1, '/home/oceania/falcon_ws/src/falcon_drivers/scripts/ros_drivers/rpi_serial')
 import adafruit_bno055
 
-import rospy
+import rospy 
+from sensor_msgs.msg import Imu
 
 class ImuDriver(object):
 	def __init__(self):
 		self.i2c = board.I2C()
 		self.sensor = adafruit_bno055.BNO055_I2C(self.i2c)
 		self.last_val = 0xFFFF
+		self.imu_pub = rospy.Publisher("bno055_imu/data", Imu, queue_size=10)
+		self.imu_msg = Imu()
 
 	def temperature(self):
 		self.result = self.sensor.temperature
@@ -27,16 +30,25 @@ class ImuDriver(object):
 		return self.result
 
 	def read_imu(self):
-		print("Accelerometer (m/s^2): {}".format(self.sensor.acceleration))
-		print("Magnetometer (microteslas): {}".format(self.sensor.magnetic))
-		print("Gyroscope (rad/sec): {}".format(self.sensor.gyro))
-		print("Euler angle: {}".format(self.sensor.euler))
-		print("Quaternion: {}".format(self.sensor.quaternion))
-		print("Linear acceleration (m/s^2): {}".format(self.sensor.linear_acceleration))
-		print("Gravity (m/s^2): {}".format(self.sensor.gravity))
-		print()
-
-		time.sleep(1)
+		#print("Accelerometer (m/s^2): {}".format(self.sensor.acceleration))
+		#print("Magnetometer (microteslas): {}".format(self.sensor.magnetic))
+		#print("Gyroscope (rad/sec): {}".format(self.sensor.gyro))
+		#print("Euler angle: {}".format(self.sensor.euler))
+		#print("Quaternion: {}".format(self.sensor.quaternion))
+		#print("Linear acceleration (m/s^2): {}".format(self.sensor.linear_acceleration))
+		#print("Gravity (m/s^2): {}".format(self.sensor.gravity))
+		#print()
+		self.imu_msg.orientation.w = self.sensor.quaternion[0]
+		self.imu_msg.orientation.x = self.sensor.quaternion[1]
+		self.imu_msg.orientation.y = self.sensor.quaternion[2]
+		self.imu_msg.orientation.z = self.sensor.quaternion[3]
+		self.imu_msg.angular_velocity.x = self.sensor.gyro[0]
+		self.imu_msg.angular_velocity.y = self.sensor.gyro[1]
+		self.imu_msg.angular_velocity.z = self.sensor.gyro[2]
+		self.imu_msg.linear_acceleration.x = self.sensor.linear_acceleration[0]
+		self.imu_msg.linear_acceleration.y = self.sensor.linear_acceleration[1]
+		self.imu_msg.linear_acceleration.z = self.sensor.linear_acceleration[2]
+		self.imu_pub.publish(self.imu_msg)
 
 if __name__ == "__main__":
 	rospy.init_node("bno055_node")
