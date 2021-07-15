@@ -41,7 +41,7 @@ bool StateMachine::init(){
 	
 	beacons_pos_subscriber_ = n_.subscribe<marvelmind_nav::beacon_pos_a>("beacons_pos_a", 10, &StateMachine::beaconsPosCallback, this);
 	current_pos_subscriber_ = n_.subscribe<marvelmind_nav::hedge_imu_fusion>("hedge_imu_fusion", 10, &StateMachine::currentPosCallback, this);
-	rviz_marker_publisher_ = n_.advertise<visualization_msgs::Marker>("visualization_marker", 1);	// Declare publisher for rviz visualization
+	rviz_marker_publisher_ = n_.advertise<visualization_msgs::Marker>("visualization_marker", 1, true);	// Declare publisher for rviz visualization
 	cmd_velocity_publisher_  = n_.advertise<geometry_msgs::Twist>("cmd_vel", 10);
 	current_state_ = new StartState(this);
 	return true;
@@ -86,6 +86,7 @@ void StateMachine::showRvizMoveGoals(){
     marker.lifetime = ros::Duration(0); //-forever- 
 	
 	for (int i=0; i<move_goals_.size(); i++){
+		marker.header.stamp = ros::Time::now();
 		marker.id = i;	// index used as marker address
 	    marker.pose.position.x = move_goals_[i].x;
 		marker.pose.position.y = move_goals_[i].y;
@@ -145,10 +146,12 @@ void StateMachine::generateMoveGoals(){
 		if ((*it).second.y > max_point.y)
 			max_point.x = (*it).second.x;
 	}
+	ROS_INFO("Min and max positions (%f,%f) (%f,%f)",min_point.x,min_point.y,max_point.x,max_point.y);
 	min_x_bound_ = min_point.x + bound_padding_;
 	min_y_bound_ = min_point.y + bound_padding_;
 	max_x_bound_ = max_point.x - bound_padding_;
 	max_y_bound_ = max_point.y - bound_padding_;
+	ROS_INFO("Min and max bounds (%f,%f) (%f,%f)",min_x_bound_,min_y_bound_,max_x_bound_,max_y_bound_);
 	
 	// Generate zig-zag path from rectangle starting from left to right from bottom to top first
 	Position p;
@@ -167,6 +170,10 @@ void StateMachine::generateMoveGoals(){
 			move_goals_.push_back(p);
 		}
 		is_going_up = !is_going_up;
+	}
+	
+	for (int i = 0; i<move_goals_.size(); i++){
+		ROS_INFO("Goal[%d]: (%f,%f)",i,move_goals_[i].x,move_goals_[i].y);
 	}
 	showRvizMoveGoals();
 }
@@ -224,6 +231,7 @@ void StateMachine::moveTowardsGoal(){
 		
 		// linear movement is only present when angle difference is small enough
 		if (is_differential_movement) cmd_vel_msg.linear.x = 0.5;
+		ROS_INFO_THROTTLE(1, "Moving to [%d] (%f,%f) linear: %f ang: %f",current_goal_index_,move_goals_[current_goal_index_].x,move_goals_[current_goal_index_].y,cmd_vel_msg.linear.x,cmd_vel_msg.angular.z);
 	}
 	else{
 		ROS_INFO("Goal reached.");
