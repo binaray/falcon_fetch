@@ -5,12 +5,15 @@
 from roboclaw_3 import Roboclaw
 
 import rospy
+import math
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
+import tf
 
 # m1 = right motor
 # m2 = left motor
-# for the falcon test platform, m1 and m2 encoders are swapped. actual platform should not be swapped
+# max linear speed  = 0.13m/s 
+# max angular speed = 0.63rad/s
 
 class MotorDriver(object):
 	def __init__(self):
@@ -26,8 +29,10 @@ class MotorDriver(object):
 		self.ENCODER_CPR = 20  #encoder CPR
 		self.GEAR_RATIO = 391 # Gear-ratio
 		self.PI = 3.14 
-		self.L = 1.6 # wheel base
-		self.R = 0.4 # Radius of the wheel
+		self.L = 1.6 # wheel base, old
+		self.R = 0.4 # Radius of the wheel, old
+		self.RADIUS = 0.05
+		self.WHEEL_BASE = 0.115+0.048
 
 		self.cmd_vel_sub = rospy.Subscriber("cmd_vel", Twist, self.cmd_vel_cb)
 		self.wheel_odom_pub = rospy.Publisher("wheel_odom", Odometry, queue_size=10)
@@ -35,23 +40,23 @@ class MotorDriver(object):
 		self.odom_msg = Odometry()
 
 		# setting to 0 
-		self.w_qppsl = 0;
-		self.w_qppsr = 0;
-		self.is_turning = 0;
-		self.is_reverse = 0;
+		self.w_qppsl = 0
+		self.w_qppsr = 0
+		
+		self.last_time = rospy.get_rostime()
+		self.current_time = rospy.get_rostime()
+		self.x = 0
+		self.y = 0
+		self.z = 0
+		self.th = 0
+		self.speed_vx = 0
+		self.speed_vy = 0
+		self.speed_vz = 0
 
 	def cmd_vel_cb(self, msg):
 		self.v_x = msg.linear.x
 		self.v_z = msg.angular.z
-		# the following flags are because the motor sucks and cannot move back at the same speed
-		if self.v_z != 0:
-			self.is_turning = True
-		else:
-			self.is_turning = False
-		if self.v_x < 0:
-			self.is_reverse = True
-		else:
-			self.is_reverse = False
+		# should convert to pwm speed here rather than later
 		self.w_left = ((2 * self.v_x) - (self.v_z * self.L)) / (2 * self.R)  #wheel left
 		self.w_right = ((2 * self.v_x) + (self.v_z * self.L)) / (2 * self.R) #wheel right 
 		self.w_qppsl = (self.w_left * self.ENCODER_CPR * self.GEAR_RATIO)/(2 * self.PI)
@@ -80,14 +85,6 @@ class MotorDriver(object):
 					self.rc.BackwardM1(self.address, abs(pwm_speed))
 			elif motor == "left":
 				#self.rc.SpeedM2(self.address, pwm_speed)
-				# m2 motor spoil so need to limit max speed for robot to turn properly
-				if self.is_reverse or self.is_turning:
-					if abs(speed) > 1600:
-						pwm_speed = 64 # max speed
-					elif abs(speed) == 0:
-						pwm_speed = 0 # 0 speed
-					else:
-						pwm_speed = int(speed/1600*64)
 				if speed > 0:
 					self.rc.ForwardM2(self.address, pwm_speed)
 				else:
@@ -99,8 +96,27 @@ class MotorDriver(object):
 		if self.is_open:
 			self.read_encoder()
 			self.read_speed()
-			self.odom_msg.pose.pose.position.x = 1
+			self.dt = (self.current_time - self.last_time).to_sec();
+			self.dx = (self.speed_vx * math.cos(self.th) - self.speed_vy * math.sin(self.th)) * self.dt;
+			self.dy = (self.speed_vx * math.sin(self.th) + self.speed_vy * math.cos(self.th)) * self.dt;
+			self.dth = self.speed_vz * self.dt;
+
+			self.x += self.dx;
+			self.y += self.y;
+			self.th += self.dth;
+			self.odom_quat = tf.transformations.quaternion_from_euler(0, 0, self.th)
+			self.odom_msg.pose.pose.position.x = self.x
+			self.odom_msg.pose.pose.position.y = self.y
+			self.odom_msg.pose.pose.position.z = self.z	# actually 0
+			self.odom_msg.pose.pose.orientation.x = self.odom_quat[0]
+			self.odom_msg.pose.pose.orientation.y = self.odom_quat[1]
+			self.odom_msg.pose.pose.orientation.z = self.odom_quat[2]
+			self.odom_msg.pose.pose.orientation.w = self.odom_quat[3]
+			self.odom_msg.twist.twist.linear.x = self.speed_vx
+			self.odom_msg.twist.twist.linear.y = self.speed_vy # actually 0
+			self.odom_msg.twist.twist.angular.z = self.speed_vz
 			self.wheel_odom_pub.publish(self.odom_msg)
+			self.last_time = rospy.get_rostime()
 		else:
 			rospy.logwarn_throttle(1, "Motor driver is not connected. Unable to retrieve data.")
 
@@ -129,9 +145,9 @@ class MotorDriver(object):
 
 	def read_speed(self):
 		if self.is_open:
-			# logic swapped because encoder wrong
-			self.speed_qppsl = self.rc.ReadSpeedM1(self.address)
-			self.speed_qppsr = self.rc.ReadSpeedM2(self.address)
+			self.current_time = rospy.get_rostime()
+			self.speed_qppsr = self.rc.ReadSpeedM1(self.address)
+			self.speed_qppsl = self.rc.ReadSpeedM2(self.address)
 			
 			if(self.speed_qppsl[0]):
 				print("Left wheel qpps:"+str(self.speed_qppsl[1]))
@@ -147,10 +163,8 @@ class MotorDriver(object):
 				print("Right wheel rps: " + str(self.speed_right))
 			else:
 				rospy.logwarn_throttle(1, "Invalid right speed received from roboclaw")
-			self.speed_vx = self.R*(self.speed_right + self.speed_left)/2
-			#self.speed_vx = self.R*2*self.PI*(self.speed_right+self.speed_left)/60
-			self.speed_vy = 0
-			self.speed_vz = self.R*(self.speed_right - self.speed_left)/(2*self.L)
+			self.speed_vx = (self.speed_right + self.speed_left)*(2*self.PI)*(self.RADIUS/2)
+			self.speed_vz = (self.speed_right - self.speed_left)*(2*self.PI)*(self.RADIUS/(2*self.WHEEL_BASE))
 			print("Robot speed - x: " + str(self.speed_vx) + " z: " + str(self.speed_vz))
 		else:
 			rospy.logwarn_throttle(1, "Motor driver is not connected. Unable to retrieve data.")
@@ -162,7 +176,7 @@ if __name__ == "__main__":
 
 	mdriver = MotorDriver()
 	while not rospy.is_shutdown():
-		#mdriver.publish_wheel_odom()
-		mdriver.read_speed()
+		mdriver.publish_wheel_odom()
+		#mdriver.read_speed()
 		rate.sleep()
 
