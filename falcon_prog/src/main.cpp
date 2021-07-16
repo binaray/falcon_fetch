@@ -60,32 +60,38 @@ void StateMachine::showRvizPos(Position p, int address, bool is_hedge){
 	marker.header.frame_id = marker_frame_;
 	marker.header.stamp = ros::Time::now();
 	marker.ns = "beacons";
-	marker.type = visualization_msgs::Marker::CUBE;
     marker.action = visualization_msgs::Marker::ADD;
 
     // Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
-	marker.pose.orientation.x = 0.0;
-	marker.pose.orientation.y = 0.0;
-	marker.pose.orientation.z = 0.0;
-	marker.pose.orientation.w = 1.0;
+  if (is_hedge){
+  	marker.type = visualization_msgs::Marker::ARROW;
+		marker.pose.orientation.x = current_orientation_.x;
+		marker.pose.orientation.y = current_orientation_.y;
+		marker.pose.orientation.z = current_orientation_.z;
+		marker.pose.orientation.w = current_orientation_.w;
+		
+		marker.color.r = 0.0f;
+		marker.color.g = 1.0f;
+		marker.color.b = 0.0f;
+  }
+	else{
+		marker.type = visualization_msgs::Marker::CUBE;
+		marker.pose.orientation.x = 0.0;
+		marker.pose.orientation.y = 0.0;
+		marker.pose.orientation.z = 0.0;
+		marker.pose.orientation.w = 1.0;
+		
+		marker.color.r = 0.0f;
+		marker.color.g = 0.0f;
+		marker.color.b = 0.0f;
+	}
+  marker.color.a = 1.0;
 
     // Set the scale of the marker -- 1x1x1 here means 1m on a side
     marker.scale.x = 0.05*SCALE_HEDGE;
     marker.scale.y = 0.05*SCALE_HEDGE;
     marker.scale.z = 0.02*SCALE_HEDGE;
-    // Set the color -- be sure to set alpha to something non-zero!
-  if (is_hedge){
-		marker.color.r = 0.0f;
-		marker.color.g = 1.0f;
-		marker.color.b = 0.0f;
-  }
-  else{
-		marker.color.r = 0.0f;
-		marker.color.g = 0.0f;
-		marker.color.b = 0.0f;
-	}
-    marker.color.a = 1.0;
-    marker.lifetime = ros::Duration(5); 
+    marker.lifetime = ros::Duration(10); 
 	
 	marker.id = address;
 	marker.pose.position.x = p.x;
@@ -182,8 +188,7 @@ void StateMachine::generateMoveGoals(){
 		if ((*it).second.x < min_point.x)
 			min_point.x = (*it).second.x;
 		if ((*it).second.y < min_point.y)
-			max_point.y = (*it).second.y;
-			
+			min_point.y = (*it).second.y;
 		if ((*it).second.x > max_point.x)
 			max_point.x = (*it).second.x;
 		if ((*it).second.y > max_point.y)
@@ -237,7 +242,7 @@ float StateMachine::angleDifferenceToPoint(Position p){
 	p.y -= current_pos_.y;
 	
 	float angle = atan2(p.x, p.y);
-	ROS_INFO("Relative angle from current position: %f", angle);
+	ROS_INFO("Current angle: %f Relative: %f Difference: %f", current_rad_, angle, current_rad_ + angle);
 	return current_rad_ + angle;
 }
 
@@ -331,6 +336,7 @@ void StateMachine::currentPosCallback(const marvelmind_nav::hedge_imu_fusion msg
 			is_immobile_ = true;
 		}
 	}
+	ROS_INFO_THROTTLE(1,"Current pos: (%f,%f) angle: %f", current_pos_.x,current_pos_.y, current_rad_);
 	showRvizPos(current_pos_, -1, true);
 }
 
