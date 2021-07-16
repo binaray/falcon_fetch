@@ -92,7 +92,7 @@ namespace VideoSaver{
 		}
 		try { 
 			file_name_ = (g_format_ % file_count_ % "avi").str();
-			camera_log_file_name_ = (g_format_2_ % file_count_ % "txt").str();
+			camera_log_file_name_ = (g_format_2_ % file_count_ % "csv").str();
 		} catch (...) { 
 			g_format_.clear(); 
 			g_format_2_.clear();
@@ -112,7 +112,7 @@ namespace VideoSaver{
 		cam_current_time_ = ros::Time::now();
 		cam_timestamp_ = cam_current_time_ - cam_start_time_;
 		file_.open(camera_log_file_name_, std::fstream::app);
-		file_ << "[" << cam_timestamp_<< "]" << " \n";
+		file_ <<cam_timestamp_<< "," << " \n";
 		/*
 		cam_timestamp_ = (cam_current_time_ - cam_start_time_).toSec();
 		cam_hr_timestamp_ = cam_timestamp_/3600;
@@ -152,7 +152,7 @@ namespace VideoSaver{
 		g_format_.parse(file_name_);
 
 		// create new file to record timestamps for each frame
-		camera_log_file_name_ = (helper_str_dir.append("/")).append("camera%04d_log.txt");
+		camera_log_file_name_ = (helper_str_dir.append("/")).append("camera%04d_log.csv");
 		g_format_2_.parse(camera_log_file_name_);
 
 		try {
@@ -172,7 +172,7 @@ namespace VideoSaver{
 		}
 		try { 
 			file_name_ = (g_format_ % file_count_ % "avi").str();
-			camera_log_file_name_ = (g_format_2_ % file_count_ % "txt").str();
+			camera_log_file_name_ = (g_format_2_ % file_count_ % "csv").str();
 		} catch (...) { 
 			g_format_.clear(); 
 			g_format_2_.clear();
@@ -181,7 +181,7 @@ namespace VideoSaver{
 		ROS_INFO("Camera log file path: %s", camera_log_file_name_.c_str());
 		// if file exists, delete
 		file_.open(camera_log_file_name_, std::ios::out | std::ios::trunc);
-		file_ << "Start time: " << asctime(time_);
+		file_ << "Start time: " << asctime(time_) << ",,,";
 		file_.close();
 
 		// delete folder after 7 days
