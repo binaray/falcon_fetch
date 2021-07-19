@@ -64,6 +64,8 @@ bool StateMachine::init(){
 	pn.param("rotation_threshold", stationary_threshold_, float(0.05));
 	pn.param("distance_threshold", distance_threshold_, float(0.02));
 	pn.param("differential_movement_threshold", differential_movement_threshold_, float(0.1));
+	//pn.param<std::string>("waypoint_filepath", file_path_, "/waypoints.csv");
+	file_path_ = "/waypoints.csv";
 	
 	last_updated_timeout_ = ros::Duration(5);
 	immobile_timeout_ = ros::Duration(5);
@@ -75,13 +77,15 @@ bool StateMachine::init(){
 	current_pos_subscriber_ = n_.subscribe<marvelmind_nav::hedge_imu_fusion>("hedge_imu_fusion", 10, &StateMachine::currentPosCallback, this);
 	rviz_marker_publisher_ = n_.advertise<visualization_msgs::Marker>("visualization_marker", 100, true);	// Declare publisher for rviz visualization
 	cmd_velocity_publisher_  = n_.advertise<geometry_msgs::Twist>("cmd_vel", 10);
+	read_points_srv_ = n_.advertiseService("waypoints_read", &StateMachine::readPointsFromFile, this);
+	delete_points_srv_ = n_.advertiseService("waypoints_delete", &StateMachine::clearPointsInFile, this);
+	add_point_srv_ = n_.advertiseService("waypoint_add", &StateMachine::writeCurrentPosToFile, this);
 	current_state_ = new StartState(this);
 	return true;
 }
 
 void StateMachine::update(){
 	current_state_->stateUpdate();
-	//showRvizMoveGoals();
 }
 
 void StateMachine::showRvizPos(Position p, int address, bool is_hedge){
@@ -131,10 +135,10 @@ void StateMachine::showRvizMoveGoals(){
 
 	visualization_msgs::Marker marker;
 	// Set the frame ID and timestamp.  See the TF tutorials for information on these.
-  marker.header.frame_id = marker_frame_;
-  marker.header.stamp = ros::Time::now();
-  marker.ns = "basic_shapes";
-  marker.type = visualization_msgs::Marker::CUBE;
+	marker.header.frame_id = marker_frame_;
+	marker.header.stamp = ros::Time::now();
+	marker.ns = "basic_shapes";
+	marker.type = visualization_msgs::Marker::CUBE;
 	
 	// first delete all existing markers
 	marker.action = visualization_msgs::Marker::DELETEALL;
@@ -149,11 +153,11 @@ void StateMachine::showRvizMoveGoals(){
 	marker.pose.orientation.z = 0.0;
 	marker.pose.orientation.w = 1.0;
 
-  // Set the scale of the marker -- 1x1x1 here means 1m on a side
-  marker.scale.x = 0.05*SCALE_HEDGE;
-  marker.scale.y = 0.05*SCALE_HEDGE;
-  marker.scale.z = 0.02*SCALE_HEDGE;
-  // Set the color -- be sure to set alpha to something non-zero!
+	// Set the scale of the marker -- 1x1x1 here means 1m on a side
+	marker.scale.x = 0.05*SCALE_HEDGE;
+	marker.scale.y = 0.05*SCALE_HEDGE;
+	marker.scale.z = 0.02*SCALE_HEDGE;
+	// Set the color -- be sure to set alpha to something non-zero!
 	marker.color.r = 1.0f;
 	marker.color.g = 0.0f;
 	marker.color.b = 0.0f;
@@ -337,12 +341,12 @@ void StateMachine::generateMoveGoals(){
 	
 	
 	/*-- cross configuration --*/
+	auto it = beacons_pos_.cbegin();
 	Position left_most_p = (*it).second;
 	Position bottom_most_p = (*it).second;
 	Position right_most_p = (*it).second;
 	Position top_most_p = (*it).second;
 		
-	auto it = beacons_pos_.cbegin();
 	it++;
 	
 	for (; it!=beacons_pos_.cend(); it++){
@@ -449,6 +453,43 @@ bool StateMachine::publishNextMoveGoal(){
 	}
 	goal_reached_ = false;
 	ROS_INFO("Goal set. Remainding: %d points", move_goals_.size() - current_goal_index_);
+	return true;
+}
+
+bool StateMachine::writeCurrentPosToFile(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res){
+	std::ofstream myfile(file_path_);
+	for(int i=0; i < move_goals_.size(); i++){
+		myfile<<move_goals_[i].x <<","<<move_goals_[i].y<<"\n";
+	}
+	myfile.close();
+	return true;
+}
+
+bool StateMachine::clearPointsInFile(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res){
+	move_goals_.clear();
+	std::ofstream myfile(file_path_);
+	myfile.open(file_path_, std::ofstream::out | std::ofstream::trunc);
+	myfile.close();
+	return true;
+}
+
+bool StateMachine::readPointsFromFile(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res){
+	move_goals_.clear();
+	std::ifstream myfile;
+	myfile.open(file_path_);
+	std::string line;
+	while(std::getline(myfile,line)){
+		Position p;
+		std::string token;
+		std::stringstream ss(line);
+		std::getline(ss,token,',');
+		p.x=std::stod(token);
+		std::getline(ss,token,',');
+		p.y=std::stod(token);
+		move_goals_.push_back(p);
+	}
+	myfile.close();
+	showRvizMoveGoals();
 	return true;
 }
 

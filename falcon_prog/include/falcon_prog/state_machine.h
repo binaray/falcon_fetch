@@ -8,6 +8,10 @@
 #include "std_msgs/String.h"
 #include "geometry_msgs/Twist.h"
 #include <visualization_msgs/Marker.h>
+#include "std_srvs/Empty.h"
+#include <iostream>
+#include <fstream>
+#include <sstream>
 
 #include "marvelmind_nav/hedge_pos.h"
 #include "marvelmind_nav/hedge_pos_a.h"
@@ -74,6 +78,7 @@ class StateMachine{
 		float differential_movement_threshold_;
 		ros::Duration last_updated_timeout_;
 		ros::Duration immobile_timeout_;
+		std::string file_path_;
 		
 	private:		
 		static State *current_state_;
@@ -84,6 +89,9 @@ class StateMachine{
 		ros::Subscriber current_pos_subscriber_;
 		ros::Publisher cmd_velocity_publisher_;
 		ros::Publisher rviz_marker_publisher_;
+		ros::ServiceServer add_point_srv_;
+		ros::ServiceServer delete_points_srv_;
+		ros::ServiceServer read_points_srv_;
 
 		void beaconsPosCallback(const marvelmind_nav::beacon_pos_a msg);
 		void currentPosCallback(const marvelmind_nav::hedge_imu_fusion msg);
@@ -93,6 +101,10 @@ class StateMachine{
 		void showRvizMoveGoals();
 		void updateRvizMoveGoal(int address, int status);
 		void showRvizPos(Position p, int address, bool is_hedge);
+		
+		bool writeCurrentPosToFile(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res);
+		bool clearPointsInFile(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res);
+		bool readPointsFromFile(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res);
 };
 
 #endif
