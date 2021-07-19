@@ -21,16 +21,16 @@
 #include "marvelmind_nav/marvelmind_waypoint.h"
 
 struct Position{
-	float x;
-	float y;
+	float x=0.0;
+	float y=0.0;
 	ros::Time last_updated;
 };
 
 struct Quaternion{
-	float x;
-	float y;
-	float z;
-	float w;
+	float x=0.0;
+	float y=0.0;
+	float z=0.0;
+	float w=1.0;
 };
 
 class State;

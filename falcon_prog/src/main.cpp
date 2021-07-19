@@ -10,8 +10,40 @@ float quaternionToRadian(Quaternion q){
     return std::atan2(siny_cosp, cosy_cosp);
 }
 
-float distanceBetweenPoints(Position a, Position b){
+float distanceBetweenVectors(Position a, Position b){
 	return sqrt(pow((a.x - b.x),2)+pow((a.y - b.y),2));
+}
+
+Position mulScalarToVector(Position p, float s){
+	p.x*=s;
+	p.y*=s;
+	return p;
+}
+
+Position addConstantToVector(Position p, float c){
+	p.x+=c;
+	p.y+=c;
+	return p;
+}
+
+Position toUnitVector(Position p){
+	Position zero_p;
+	float magnitude = distanceBetweenVectors(p, zero_p);
+	p.x = p.x/magnitude;
+	p.y = p.y/magnitude;
+	return p;
+}
+
+Position getVector(Position dest, Position source){
+	dest.x-=source.x;
+	dest.y-=source.y;
+	return dest;
+}
+
+Position addVectors(Position a, Position b){
+	a.x+=b.y;
+	a.y+=b.y;
+	return a;
 }
 
 StateMachine::StateMachine(){
@@ -60,38 +92,32 @@ void StateMachine::showRvizPos(Position p, int address, bool is_hedge){
 	marker.header.frame_id = marker_frame_;
 	marker.header.stamp = ros::Time::now();
 	marker.ns = "beacons";
+	marker.type = visualization_msgs::Marker::CUBE;
     marker.action = visualization_msgs::Marker::ADD;
 
     // Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
-  if (is_hedge){
-  	marker.type = visualization_msgs::Marker::ARROW;
-		marker.pose.orientation.x = current_orientation_.x;
-		marker.pose.orientation.y = current_orientation_.y;
-		marker.pose.orientation.z = current_orientation_.z;
-		marker.pose.orientation.w = current_orientation_.w;
-		
-		marker.color.r = 0.0f;
-		marker.color.g = 1.0f;
-		marker.color.b = 0.0f;
-  }
-	else{
-		marker.type = visualization_msgs::Marker::CUBE;
-		marker.pose.orientation.x = 0.0;
-		marker.pose.orientation.y = 0.0;
-		marker.pose.orientation.z = 0.0;
-		marker.pose.orientation.w = 1.0;
-		
-		marker.color.r = 0.0f;
-		marker.color.g = 0.0f;
-		marker.color.b = 0.0f;
-	}
-  marker.color.a = 1.0;
+	marker.pose.orientation.x = 0.0;
+	marker.pose.orientation.y = 0.0;
+	marker.pose.orientation.z = 0.0;
+	marker.pose.orientation.w = 1.0;
 
     // Set the scale of the marker -- 1x1x1 here means 1m on a side
     marker.scale.x = 0.05*SCALE_HEDGE;
     marker.scale.y = 0.05*SCALE_HEDGE;
     marker.scale.z = 0.02*SCALE_HEDGE;
-    marker.lifetime = ros::Duration(10); 
+    // Set the color -- be sure to set alpha to something non-zero!
+  if (is_hedge){
+		marker.color.r = 0.0f;
+		marker.color.g = 1.0f;
+		marker.color.b = 0.0f;
+  }
+  else{
+		marker.color.r = 0.0f;
+		marker.color.g = 0.0f;
+		marker.color.b = 0.0f;
+	}
+    marker.color.a = 1.0;
+    marker.lifetime = ros::Duration(5); 
 	
 	marker.id = address;
 	marker.pose.position.x = p.x;
@@ -182,8 +208,11 @@ void StateMachine::generateMoveGoals(){
 	// First generate arbitrary rectangle from min/max points
 	auto it = beacons_pos_.cbegin();
 	it++;
+	
+	/*-- naive rectangle implementation approach --
 	Position min_point = (*it).second;
 	Position max_point = (*it).second;
+	
 	for (; it!=beacons_pos_.cend(); it++){
 		if ((*it).second.x < min_point.x)
 			min_point.x = (*it).second.x;
@@ -219,9 +248,147 @@ void StateMachine::generateMoveGoals(){
 		}
 		is_going_up = !is_going_up;
 	}
+	*/
 	
+	/*-- dynamic rectangle approach --*
+	//Construct up horizontal and vertical move vector from bottom-leftmost point
+	Position left_most_p = (*it).second;
+	Position bottom_most_p = (*it).second;
+	
+	for (; it!=beacons_pos_.cend(); it++){
+		if ((*it).second.x < min_point.x){
+			left_most_p.x = (*it).second.x;
+			left_most_p.y = (*it).second.y;
+		}
+		if ((*it).second.y < min_point.y){
+			bottom_most_p.x = (*it).second.x;
+			bottom_most_p.y = (*it).second.y;
+		}
+	}
+	Position min_point = (bottom_most_p.y<left_most_p.x) ? bottom_most_p : left_most_p;
+	
+	// x_v(ector) and y_v(ector) are assigned arbitrarily first to shortest and next shortest distance
+	// --Note--
+	// --x and y here refer to horizontal and vertical movement components here; not the coordinate system of the robot tf
+	// --------
+	Position x_v, y_v;
+	Position max_point;	// opposite point from min_point to determine operation bounds
+	float min_d = 0;
+	float max_d = 0;
+	for (it = beacons_pos_.cbegin(); it!=beacons_pos_.cend(); it++){
+		float d = distanceBetweenVectors((*it).second, min_point);
+		if (d!=0){
+			if (min_d==0 || d<min_d){
+				//store previous shortest vector to y_v and new shortest to x_v
+				y_v = x_v;
+				x_v.x = (*it).second.x-min_point.x;
+				x_v.y = (*it).second.y-min_point.y;
+			}
+			else if (d>max_d) {
+				max_d = d;
+				max_point = (*it).second;
+			}
+		}
+	}
+	// then determine x/y vectors
+	if (x_v.x < y_v.x){
+		Position temp = x_v;
+		x_v = y_v;
+		y_v = temp;
+	}
+	//compute unit vectors
+	x_v = toUnitVector(x_v);
+	y_v = toUnitVector(y_v);
+	
+	//transform xy vectors to be perpendicular
+	float x_dot_y = x_v.x*y_v.x + x_v.y*y_v.y;
+	float angle = acosh(x_dot_y);
+	
+	/
+	ROS_INFO("Min and max positions (%f,%f) (%f,%f)",min_point.x,min_point.y,max_point.x,max_point.y);
+	min_x_bound_ = min_point.x + bound_padding_ * x_v.x;
+	min_y_bound_ = min_point.y + bound_padding_ * x_v.y;
+	max_x_bound_ = max_point.x - bound_padding_ * y_v.x;
+	max_y_bound_ = max_point.y - bound_padding_ * y_v.y;
+	ROS_INFO("Min and max bounds (%f,%f) (%f,%f)",min_x_bound_,min_y_bound_,max_x_bound_,max_y_bound_);
+	
+	// Generate zig-zag path from rectangle starting from left to right from bottom to top first
+	bool is_going_up = true;
+	for (min_point.x=min_x_bound_; min_point.x<=max_x_bound_; min_point.x+=x_step_){
+		if (is_going_up){
+			p.y = min_y_bound_;
+			move_goals_.push_back(p);
+			p.y = max_y_bound_;
+			move_goals_.push_back(p);
+		}
+		else{
+			p.y = max_y_bound_;
+			move_goals_.push_back(p);
+			p.y = min_y_bound_;
+			move_goals_.push_back(p);
+		}
+		is_going_up = !is_going_up;
+	}
 	for (int i = 0; i<move_goals_.size(); i++){
 		ROS_INFO("Goal[%d]: (%f,%f)",i,move_goals_[i].x,move_goals_[i].y);
+	}
+	//*/
+	
+	/*-- cross configuration --*/
+	Position left_most_p = (*it).second;
+	Position bottom_most_p = (*it).second;
+	Position right_most_p = (*it).second;
+	Position top_most_p = (*it).second;
+	
+	for (; it!=beacons_pos_.cend(); it++){
+		if ((*it).second.x < left_most_p.x){
+			left_most_p = (*it).second;
+		}
+		if ((*it).second.y < bottom_most_p.y){
+			bottom_most_p = (*it).second;
+		}
+		if ((*it).second.x > right_most_p.x){
+			right_most_p = (*it).second;
+		}
+		if ((*it).second.y > top_most_p.y){
+			top_most_p = (*it).second;
+		}
+	}
+	
+	// Translate points to movebounds
+	left_most_p = addConstantToVector(left_most_p, bound_padding_);
+	bottom_most_p = addConstantToVector(bottom_most_p, bound_padding_);
+	right_most_p = addConstantToVector(right_most_p, -bound_padding_);
+	top_most_p = addConstantToVector(top_most_p, -bound_padding_);
+	
+	Position x_v = getVector(top_most_p, bottom_most_p);
+	Position y_v = getVector(right_most_p, left_most_p);
+	
+	Position half_x_v = x_v;	//to compute start point from bottom_most_p
+	half_x_v.x = -(x_v.x)/2;
+	half_x_v.y = -(x_v.y)/2;
+	
+	//compute unit vectors & compute x step
+	x_v = mulScalarToVector(toUnitVector(x_v), x_step_);
+	
+	// Generate zig-zag path from rectangle starting from left to right from bottom to top first
+	Position p = addVectors(bottom_most_p, half_x_v);	//bottom left start point
+	int steps = distanceBetweenVectors(left_most_p,right_most_p)/x_step_;
+	bool is_going_up = true;
+	for (int i=0; i<steps; i++){
+		if (is_going_up){
+			p = addVectors(p, mulScalarToVector(x_v, i));
+			move_goals_.push_back(p);
+			p = addVectors(p, y_v);
+			move_goals_.push_back(p);
+		}
+		else{
+			p = addVectors(p, mulScalarToVector(x_v, i));
+			move_goals_.push_back(p);
+			p = getVector(p, y_v);	//p - y_v
+			move_goals_.push_back(p);
+		}
+		is_going_up = !is_going_up;
 	}
 	showRvizMoveGoals();
 }
@@ -242,14 +409,14 @@ float StateMachine::angleDifferenceToPoint(Position p){
 	p.y -= current_pos_.y;
 	
 	float angle = atan2(p.x, p.y);
-	ROS_INFO("Current angle: %f Relative: %f Difference: %f", current_rad_, angle, current_rad_ + angle);
+	ROS_INFO("Relative angle from current position: %f", angle);
 	return current_rad_ + angle;
 }
 
 void StateMachine::moveTowardsGoal(){
 	geometry_msgs::Twist cmd_vel_msg;	
 	
-	if (distanceBetweenPoints(current_pos_, move_goals_[current_goal_index_]) > distance_threshold_){		
+	if (distanceBetweenVectors(current_pos_, move_goals_[current_goal_index_]) > distance_threshold_){		
 		//check robot direction with goal
 		float angle = angleDifferenceToPoint(move_goals_[current_goal_index_]);
 		bool is_differential_movement;
@@ -336,7 +503,6 @@ void StateMachine::currentPosCallback(const marvelmind_nav::hedge_imu_fusion msg
 			is_immobile_ = true;
 		}
 	}
-	ROS_INFO_THROTTLE(1,"Current pos: (%f,%f) angle: %f", current_pos_.x,current_pos_.y, current_rad_);
 	showRvizPos(current_pos_, -1, true);
 }
 
