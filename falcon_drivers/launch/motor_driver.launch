@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+	<node name="falcon_roboclaw" pkg="falcon_drivers" type="motor_driver_speed.py" output="screen" respawn="true"/>
+</launch>

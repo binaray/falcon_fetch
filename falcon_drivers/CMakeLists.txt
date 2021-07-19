@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   std_srvs
   marvelmind_nav
+  tf
 )
 
 ## System dependencies are found with CMake's conventions

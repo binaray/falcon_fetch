@@ -12,8 +12,8 @@ import tf
 
 # m1 = right motor
 # m2 = left motor
-# max linear speed  = 0.13m/s 
-# max angular speed = 0.63rad/s
+# max linear speed  = 0.15m/s 
+# max angular speed = 1.0rad/s
 
 class MotorDriver(object):
 	def __init__(self):
@@ -60,40 +60,25 @@ class MotorDriver(object):
 		self.v_z = msg.angular.z
 		# should convert to pwm speed here rather than later
 		# any speed above max speed 
-		self.w_left = ((2 * self.v_x) - (self.v_z * self.L)) / (2 * self.R)  #wheel left
-		self.w_right = ((2 * self.v_x) + (self.v_z * self.L)) / (2 * self.R) #wheel right 
-		self.w_qppsl = (self.w_left * self.ENCODER_CPR * self.GEAR_RATIO)/(2 * self.PI)
-		self.w_qppsr = (self.w_right * self.ENCODER_CPR * self.GEAR_RATIO)/(2 * self.PI)
+		self.w_left = 0.5*(self.v_x - (self.v_z * self.WHEEL_BASE))/(self.RADIUS*self.PI)  #wheel left
+		self.w_right = 0.5*(self.v_x + (self.v_z * self.WHEEL_BASE))/(self.RADIUS*self.PI) #wheel right 
+		self.w_qppsl = (self.w_left * self.ENCODER_CPR * self.GEAR_RATIO)
+		self.w_qppsr = (self.w_right * self.ENCODER_CPR * self.GEAR_RATIO)
 		rospy.loginfo("Writing speeds to motors - Left: %2f, Right: %2f", self.w_left, self.w_right)
 		rospy.loginfo("qpps to motors - Left: %d, Right: %d", int(self.w_qppsl), int(self.w_qppsr))
 		self.write_speed("left", int(self.w_qppsl)) 
 		self.write_speed("right", int(self.w_qppsr)) 
+		# writing twice because sometimes it doesn't write properly
 		self.write_speed("left", int(self.w_qppsl)) 
 		self.write_speed("right", int(self.w_qppsr)) 
 
 	def write_speed(self, motor, speed):
 		if self.is_open:
 			self.version = self.rc.ReadVersion(self.address)
-			# convert to pwm mode
-			if abs(speed) > 3700:
-				pwm_speed = 128 # max speed
-			elif abs(speed) == 0:
-				pwm_speed = 0 # 0 speed
-			else:
-				pwm_speed = int(speed/3700*128)
-			
 			if motor == "right":
-				#self.rc.SpeedM1(self.address, pwm_speed)
-				if speed > 0:
-					self.rc.ForwardM1(self.address, pwm_speed)
-				else:
-					self.rc.BackwardM1(self.address, abs(pwm_speed))
+				self.rc.SpeedM1(self.address, speed)
 			elif motor == "left":
-				#self.rc.SpeedM2(self.address, pwm_speed)
-				if speed > 0:
-					self.rc.ForwardM2(self.address, pwm_speed)
-				else:
-					self.rc.BackwardM2(self.address, abs(pwm_speed))
+				self.rc.SpeedM2(self.address, speed)
 		else:
 			rospy.logwarn_throttle(1, "Motor driver is not connected. Unable to write data.")
 
@@ -155,14 +140,14 @@ class MotorDriver(object):
 			self.speed_qppsl = self.rc.ReadSpeedM2(self.address)
 			
 			if(self.speed_qppsl[0]):
-				print("Left wheel qpps:"+str(self.speed_qppsl[1]))
+				print("Left wheel qpps:"+str(self.speed_qppsl[1])+";  Written qpps:"+str(self.w_qppsl))
 				# convert from qpps to velocity
 				self.speed_left = (self.speed_qppsl[1])/(self.ENCODER_CPR*self.GEAR_RATIO)
 				print("Left wheel rps: " + str(self.speed_left))
 			else:
 				rospy.logwarn_throttle(1, "Invalid left speed received from roboclaw")
 			if(self.speed_qppsr[0]):
-				print("Right wheel qpps:"+str(self.speed_qppsr[1]))
+				print("Right wheel qpps:"+str(self.speed_qppsr[1])+";  Written qpps:"+str(self.w_qppsr))
 				# convert from qpps to velocity
 				self.speed_right = (self.speed_qppsr[1])/(self.ENCODER_CPR*self.GEAR_RATIO)
 				print("Right wheel rps: " + str(self.speed_right))
