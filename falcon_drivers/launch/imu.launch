@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+	<node name="falcon_imu" pkg="falcon_drivers" type="imu.py" output="screen" respawn="true"/>
+</launch>
