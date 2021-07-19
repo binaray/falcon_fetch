@@ -15,7 +15,7 @@ StartState::StartState(StateMachine *machine) : State(machine){
 	ROS_INFO("Falcon fetch program starting up");
 }
 void StartState::stateUpdate() { 
-	ROS_INFO_THROTTLE(5, "Waiting for beacons to startup.. Left: %d", machine->stationary_beacon_count_);
+	ROS_INFO_THROTTLE(5, "Waiting for beacons to startup.. Left: %d", machine->stationary_beacon_count_-machine->beacons_pos_.size());
 	if (machine->is_beacons_init_){
 		setState(new RunState(machine));
 	}
@@ -42,7 +42,7 @@ void RunState::stateUpdate(){
 		if (machine->is_immobile_){
 			ROS_WARN_THROTTLE(1, "Robot is immobile");
 		}		
-		machine->moveTowardsGoal();
+		//machine->moveTowardsGoal();
 	}
 }
 void RunState::onInput(uint8_t input){}

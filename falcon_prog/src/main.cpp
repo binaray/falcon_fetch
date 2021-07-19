@@ -205,11 +205,12 @@ void StateMachine::updateRvizMoveGoal(int address, int status){
 }
 
 void StateMachine::generateMoveGoals(){
+
+	/*-- naive rectangle implementation approach --
 	// First generate arbitrary rectangle from min/max points
 	auto it = beacons_pos_.cbegin();
 	it++;
 	
-	/*-- naive rectangle implementation approach --
 	Position min_point = (*it).second;
 	Position max_point = (*it).second;
 	
@@ -334,14 +335,20 @@ void StateMachine::generateMoveGoals(){
 	}
 	//*/
 	
+	
 	/*-- cross configuration --*/
 	Position left_most_p = (*it).second;
 	Position bottom_most_p = (*it).second;
 	Position right_most_p = (*it).second;
 	Position top_most_p = (*it).second;
+		
+	auto it = beacons_pos_.cbegin();
+	it++;
 	
 	for (; it!=beacons_pos_.cend(); it++){
+		ROS_INFO("Comparing x with %f %f",(*it).second.x,left_most_p.x);
 		if ((*it).second.x < left_most_p.x){
+			ROS_INFO("Updated %f -> %f",(*it).second.x,left_most_p.x);
 			left_most_p = (*it).second;
 		}
 		if ((*it).second.y < bottom_most_p.y){
@@ -355,23 +362,64 @@ void StateMachine::generateMoveGoals(){
 		}
 	}
 	
-	// Translate points to movebounds
-	left_most_p = addConstantToVector(left_most_p, bound_padding_);
-	bottom_most_p = addConstantToVector(bottom_most_p, bound_padding_);
-	right_most_p = addConstantToVector(right_most_p, -bound_padding_);
-	top_most_p = addConstantToVector(top_most_p, -bound_padding_);
+	ROS_INFO("BM(%f,%f) TM(%f,%f) RM(%f,%f) LM(%f,%f)",
+	bottom_most_p.x,bottom_most_p.y,
+	top_most_p.x,top_most_p.y, 
+	right_most_p.x,right_most_p.y,
+	left_most_p.x,left_most_p.y);
 	
-	Position x_v = getVector(top_most_p, bottom_most_p);
-	Position y_v = getVector(right_most_p, left_most_p);
+	// Translate points to movebounds
+	left_most_p.x += bound_padding_;
+	bottom_most_p.y += bound_padding_;
+	right_most_p.x -= bound_padding_;
+	top_most_p.y -= bound_padding_;
+	
+	ROS_INFO("Bounded points--\nBM(%f,%f) TM(%f,%f) RM(%f,%f) LM(%f,%f)",
+	bottom_most_p.x,bottom_most_p.y,
+	top_most_p.x,top_most_p.y, 
+	right_most_p.x,right_most_p.y,
+	left_most_p.x,left_most_p.y);
+	
+	/*
+	Position y_v = getVector(top_most_p, bottom_most_p);
+	Position x_v = getVector(right_most_p, left_most_p);
+	ROS_INFO("x_v(%f,%f) y_v(%f,%f)",
+	x_v.x,x_v.y,
+	y_v.x,y_v.y);
 	
 	Position half_x_v = x_v;	//to compute start point from bottom_most_p
 	half_x_v.x = -(x_v.x)/2;
 	half_x_v.y = -(x_v.y)/2;
+	ROS_INFO("half_x_v(%f,%f)",
+	half_x_v.x,half_x_v.y);
 	
 	//compute unit vectors & compute x step
-	x_v = mulScalarToVector(toUnitVector(x_v), x_step_);
+	//x_v = mulScalarToVector(toUnitVector(x_v), x_step_);
+	//ROS_INFO("x_step(%f,%f)",
+	//x_v.x,x_v.y);
+	x_v.x=x_step_;
+	x_v.y=0;*/
 	
-	// Generate zig-zag path from rectangle starting from left to right from bottom to top first
+	Position p;
+	bool is_going_up = true;
+	for (p.x=left_most_p.x; p.x<=right_most_p.x; p.x+=x_step_){
+		if (is_going_up){
+			p.y = bottom_most_p.y;
+			move_goals_.push_back(p);
+			p.y = top_most_p.y;
+			move_goals_.push_back(p);
+		}
+		else{
+			p.y = top_most_p.y;
+			move_goals_.push_back(p);
+			p.y = bottom_most_p.y;
+			move_goals_.push_back(p);
+		}
+		is_going_up = !is_going_up;
+	}
+	
+	
+	/*/ Generate zig-zag path from rectangle starting from left to right from bottom to top first
 	Position p = addVectors(bottom_most_p, half_x_v);	//bottom left start point
 	int steps = distanceBetweenVectors(left_most_p,right_most_p)/x_step_;
 	bool is_going_up = true;
@@ -389,7 +437,7 @@ void StateMachine::generateMoveGoals(){
 			move_goals_.push_back(p);
 		}
 		is_going_up = !is_going_up;
-	}
+	}*/
 	showRvizMoveGoals();
 }
 
