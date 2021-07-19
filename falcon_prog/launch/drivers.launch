@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+	<arg name="beacon_port" default="/dev/falcon_beacon"/>
+	<arg name="baud_rate" default="9600"/>
+	<node name="marvelmind_nav" pkg="marvelmind_nav" type="hedge_rcv_bin" args="$(arg beacon_port) $(arg baud_rate)" />
+	<node name="falcon_imu" pkg="falcon_drivers" type="imu.py" output="screen" respawn="true"/>
+	<node name="falcon_roboclaw" pkg="falcon_drivers" type="motor_driver_speed.py" output="screen" respawn="true"/>
+</launch>

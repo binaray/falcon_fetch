@@ -43,7 +43,7 @@ class ImuDriver(object):
 				#print("Magnetometer (microteslas): {}".format(self.sensor.magnetic))
 				#print("Gyroscope (rad/sec): {}".format(self.sensor.gyro))
 				#print("Euler angle: {}".format(self.sensor.euler))
-				print("Quaternion: {}".format(self.sensor.quaternion))
+				#print("Quaternion: {}".format(self.sensor.quaternion))
 				#print("Linear acceleration (m/s^2): {}".format(self.sensor.linear_acceleration))
 				#print("Gravity (m/s^2): {}".format(self.sensor.gravity))
 				#print()

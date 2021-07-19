@@ -48,14 +48,14 @@ namespace InitialOrientation{
 		ROS_INFO("Waiting for robot to come to a stop");
 		ros::Rate sleep_rate(1);
 		sleep_rate.sleep();
-		basic_angle_ = atan((current_x_ - initial_x_)/(current_y_ - initial_y_))/M_PI*180;
+		basic_angle_ = atan((current_x_ - initial_x_)/(current_y_ - initial_y_));
 		if(current_x_>initial_x_){
 			if(current_y_>initial_y_) final_angle_ = basic_angle_;
 			else final_angle_ = -basic_angle_;
 		}
 		else{
-			if(current_y_>initial_y_) final_angle_ = 180-basic_angle_;
-			else final_angle_ = -180+basic_angle_;
+			if(current_y_>initial_y_) final_angle_ = M_PI-basic_angle_;
+			else final_angle_ = -M_PI+basic_angle_;
 		}
 		ROS_INFO("Directional angle wrt x-axis: %5f", final_angle_);
 		offset_angle_ = final_angle_ - yaw_;
@@ -68,9 +68,9 @@ namespace InitialOrientation{
 	void publishRobotYaw(){
 		if(is_orientation_ok_){
 			// need to take into account of the global(to beacon) and relative(to robot) orientation
-			yaw_msg_.data = fmod((yaw_/M_PI*180 + offset_angle_),360);
-			if(yaw_msg_.data > 180) yaw_msg_.data = yaw_msg_.data - 360;
-			if(yaw_msg_.data < -180) yaw_msg_.data = yaw_msg_.data+360;
+			yaw_msg_.data = fmod((yaw_+ offset_angle_),M_PI);
+			if(yaw_msg_.data > M_PI) yaw_msg_.data = yaw_msg_.data - 2*M_PI;
+			if(yaw_msg_.data < -M_PI) yaw_msg_.data = yaw_msg_.data+2*M_PI;
 			robot_yaw_publisher_.publish(yaw_msg_);
 		}
 	}

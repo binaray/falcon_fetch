@@ -7,8 +7,10 @@
 #include <falcon_prog/states.h>
 #include "std_msgs/String.h"
 #include "geometry_msgs/Twist.h"
+#include "std_msgs/Float64.h"
 #include <visualization_msgs/Marker.h>
 #include "std_srvs/Empty.h"
+#include "std_srvs/Trigger.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -48,6 +50,7 @@ class StateMachine{
 		bool publishNextMoveGoal();
 		float angleDifferenceToPoint(Position p);
 		void moveTowardsGoal();
+		bool getOrientationEstimate();
 		
 		//runtime variables
 		bool is_beacons_init_ = false;
@@ -87,14 +90,17 @@ class StateMachine{
 		ros::NodeHandle n_;
 		ros::Subscriber beacons_pos_subscriber_;
 		ros::Subscriber current_pos_subscriber_;
+		ros::Subscriber current_yaw_subscriber_;
 		ros::Publisher cmd_velocity_publisher_;
 		ros::Publisher rviz_marker_publisher_;
 		ros::ServiceServer add_point_srv_;
 		ros::ServiceServer delete_points_srv_;
 		ros::ServiceServer read_points_srv_;
+		ros::ServiceClient orientation_estimate_client_;
 
 		void beaconsPosCallback(const marvelmind_nav::beacon_pos_a msg);
 		void currentPosCallback(const marvelmind_nav::hedge_imu_fusion msg);
+		void currentYawCallback(const std_msgs::Float64 msg);
 		
 		bool init();
 		void generateMoveGoals();

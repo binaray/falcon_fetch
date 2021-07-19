@@ -75,11 +75,13 @@ bool StateMachine::init(){
 	
 	beacons_pos_subscriber_ = n_.subscribe<marvelmind_nav::beacon_pos_a>("beacons_pos_a", 10, &StateMachine::beaconsPosCallback, this);
 	current_pos_subscriber_ = n_.subscribe<marvelmind_nav::hedge_imu_fusion>("hedge_imu_fusion", 10, &StateMachine::currentPosCallback, this);
+	current_yaw_subscriber_ = n_.subscribe<std_msgs::Float64>("robot_yaw", 10, &StateMachine::currentYawCallback, this);
 	rviz_marker_publisher_ = n_.advertise<visualization_msgs::Marker>("visualization_marker", 100, true);	// Declare publisher for rviz visualization
 	cmd_velocity_publisher_  = n_.advertise<geometry_msgs::Twist>("cmd_vel", 10);
 	read_points_srv_ = n_.advertiseService("waypoints_read", &StateMachine::readPointsFromFile, this);
 	delete_points_srv_ = n_.advertiseService("waypoints_delete", &StateMachine::clearPointsInFile, this);
 	add_point_srv_ = n_.advertiseService("waypoint_add", &StateMachine::writeCurrentPosToFile, this);
+	orientation_estimate_client_ = n_.serviceClient<std_srvs::Trigger>("find_orientation");
 	current_state_ = new StartState(this);
 	return true;
 }
@@ -96,14 +98,8 @@ void StateMachine::showRvizPos(Position p, int address, bool is_hedge){
 	marker.header.frame_id = marker_frame_;
 	marker.header.stamp = ros::Time::now();
 	marker.ns = "beacons";
-	marker.type = visualization_msgs::Marker::CUBE;
     marker.action = visualization_msgs::Marker::ADD;
 
-    // Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
-	marker.pose.orientation.x = 0.0;
-	marker.pose.orientation.y = 0.0;
-	marker.pose.orientation.z = 0.0;
-	marker.pose.orientation.w = 1.0;
 
     // Set the scale of the marker -- 1x1x1 here means 1m on a side
     marker.scale.x = 0.05*SCALE_HEDGE;
@@ -111,17 +107,26 @@ void StateMachine::showRvizPos(Position p, int address, bool is_hedge){
     marker.scale.z = 0.02*SCALE_HEDGE;
     // Set the color -- be sure to set alpha to something non-zero!
   if (is_hedge){
+		marker.type = visualization_msgs::Marker::ARROW;
 		marker.color.r = 0.0f;
 		marker.color.g = 1.0f;
 		marker.color.b = 0.0f;
+		marker.pose.orientation.z = sin(current_rad_ * 0.5);
+		marker.pose.orientation.w = cos(current_rad_ * 0.5);
+		marker.lifetime = ros::Duration(5); 
   }
   else{
+		marker.type = visualization_msgs::Marker::CUBE;
 		marker.color.r = 0.0f;
 		marker.color.g = 0.0f;
 		marker.color.b = 0.0f;
+		marker.pose.orientation.x = 0.0;
+		marker.pose.orientation.y = 0.0;
+		marker.pose.orientation.z = 0.0;
+		marker.pose.orientation.w = 1.0;
+		marker.lifetime = ros::Duration(0); //-forever- 
 	}
     marker.color.a = 1.0;
-    marker.lifetime = ros::Duration(5); 
 	
 	marker.id = address;
 	marker.pose.position.x = p.x;
@@ -445,6 +450,16 @@ void StateMachine::generateMoveGoals(){
 	showRvizMoveGoals();
 }
 
+bool StateMachine::getOrientationEstimate(){
+	ros::service::waitForService("find_orientation", -1);
+  if(ros::service::exists("find_orientation", true)){
+    std_srvs::Trigger srv;
+    orientation_estimate_client_.call(srv);
+    return srv.response.success;
+  }
+  return false;
+}
+
 bool StateMachine::publishNextMoveGoal(){
 	current_goal_index_++;
 	if (current_goal_index_ >= move_goals_.size()){
@@ -543,7 +558,7 @@ void StateMachine::moveTowardsGoal(){
 		goal_reached_ = true;
 	}
 		
-	cmd_velocity_publisher_.publish(cmd_vel_msg);
+	//cmd_velocity_publisher_.publish(cmd_vel_msg);
 }
 
 void StateMachine::beaconsPosCallback(const marvelmind_nav::beacon_pos_a msg){
@@ -567,13 +582,13 @@ void StateMachine::currentPosCallback(const marvelmind_nav::hedge_imu_fusion msg
 	current_pos_.x = msg.x_m;
 	current_pos_.y = msg.y_m;
 	current_pos_.last_updated = ros::Time::now();
-	
+	/*
 	current_orientation_.w = msg.qw;
 	current_orientation_.x = msg.qx;
 	current_orientation_.y = msg.qy;
 	current_orientation_.z = msg.qz;
 	current_rad_ = quaternionToRadian(current_orientation_);
-	
+	*/
 	if (!stationary_pos_){
 		stationary_pos_ = new Position;
 		stationary_pos_->x = current_pos_.x;
@@ -593,6 +608,10 @@ void StateMachine::currentPosCallback(const marvelmind_nav::hedge_imu_fusion msg
 		}
 	}
 	showRvizPos(current_pos_, -1, true);
+}
+
+void StateMachine::currentYawCallback(const std_msgs::Float64 msg){
+	current_rad_ = msg.data;
 }
 
 int main(int argc, char **argv){

@@ -17,7 +17,8 @@ StartState::StartState(StateMachine *machine) : State(machine){
 void StartState::stateUpdate() { 
 	ROS_INFO_THROTTLE(5, "Waiting for beacons to startup.. Left: %d", machine->stationary_beacon_count_-machine->beacons_pos_.size());
 	if (machine->is_beacons_init_){
-		setState(new RunState(machine));
+		if (machine->getOrientationEstimate()) setState(new RunState(machine));
+		else ROS_ERROR_THROTTLE(5,"Unable to get orientation");
 	}
 }
 void StartState::onInput(uint8_t input){}
@@ -28,7 +29,6 @@ RunState::RunState(StateMachine *machine) : State(machine){
 	if(!machine->publishNextMoveGoal()) {
 		ROS_ERROR("Something went wrong: No points found..");
 	}
-	//machine->is_running_waypoint_ = true;	//start listening to movebase feedback
 	machine->goal_reached_ = false;
 }
 void RunState::stateUpdate(){
@@ -41,8 +41,8 @@ void RunState::stateUpdate(){
 		}
 		if (machine->is_immobile_){
 			ROS_WARN_THROTTLE(1, "Robot is immobile");
-		}		
-		//machine->moveTowardsGoal();
+		}
+		machine->moveTowardsGoal();
 	}
 }
 void RunState::onInput(uint8_t input){}
