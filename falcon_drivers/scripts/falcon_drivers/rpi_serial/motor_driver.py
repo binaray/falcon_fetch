@@ -33,6 +33,8 @@ class MotorDriver(object):
 		self.R = 0.4 # Radius of the wheel, old
 		self.RADIUS = 0.05
 		self.WHEEL_BASE = 0.115+0.048
+		self.MAX_LINEAR_SPEED = 0.13
+		self.MAX_ANGULAR_SPEED = 0.63
 
 		self.cmd_vel_sub = rospy.Subscriber("cmd_vel", Twist, self.cmd_vel_cb)
 		self.wheel_odom_pub = rospy.Publisher("wheel_odom", Odometry, queue_size=10)
@@ -57,6 +59,7 @@ class MotorDriver(object):
 		self.v_x = msg.linear.x
 		self.v_z = msg.angular.z
 		# should convert to pwm speed here rather than later
+		# any speed above max speed 
 		self.w_left = ((2 * self.v_x) - (self.v_z * self.L)) / (2 * self.R)  #wheel left
 		self.w_right = ((2 * self.v_x) + (self.v_z * self.L)) / (2 * self.R) #wheel right 
 		self.w_qppsl = (self.w_left * self.ENCODER_CPR * self.GEAR_RATIO)/(2 * self.PI)

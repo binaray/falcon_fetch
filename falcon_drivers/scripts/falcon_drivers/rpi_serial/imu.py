@@ -30,25 +30,28 @@ class ImuDriver(object):
 		return self.result
 
 	def read_imu(self):
-		#print("Accelerometer (m/s^2): {}".format(self.sensor.acceleration))
-		#print("Magnetometer (microteslas): {}".format(self.sensor.magnetic))
-		#print("Gyroscope (rad/sec): {}".format(self.sensor.gyro))
-		#print("Euler angle: {}".format(self.sensor.euler))
-		#print("Quaternion: {}".format(self.sensor.quaternion))
-		#print("Linear acceleration (m/s^2): {}".format(self.sensor.linear_acceleration))
-		#print("Gravity (m/s^2): {}".format(self.sensor.gravity))
-		#print()
-		self.imu_msg.orientation.w = self.sensor.quaternion[0]
-		self.imu_msg.orientation.x = self.sensor.quaternion[1]
-		self.imu_msg.orientation.y = self.sensor.quaternion[2]
-		self.imu_msg.orientation.z = self.sensor.quaternion[3]
-		self.imu_msg.angular_velocity.x = self.sensor.gyro[0]
-		self.imu_msg.angular_velocity.y = self.sensor.gyro[1]
-		self.imu_msg.angular_velocity.z = self.sensor.gyro[2]
-		self.imu_msg.linear_acceleration.x = self.sensor.linear_acceleration[0]
-		self.imu_msg.linear_acceleration.y = self.sensor.linear_acceleration[1]
-		self.imu_msg.linear_acceleration.z = self.sensor.linear_acceleration[2]
-		self.imu_pub.publish(self.imu_msg)
+		try:
+			#print("Accelerometer (m/s^2): {}".format(self.sensor.acceleration))
+			#print("Magnetometer (microteslas): {}".format(self.sensor.magnetic))
+			#print("Gyroscope (rad/sec): {}".format(self.sensor.gyro))
+			#print("Euler angle: {}".format(self.sensor.euler))
+			#print("Quaternion: {}".format(self.sensor.quaternion))
+			#print("Linear acceleration (m/s^2): {}".format(self.sensor.linear_acceleration))
+			#print("Gravity (m/s^2): {}".format(self.sensor.gravity))
+			#print()
+			self.imu_msg.orientation.w = self.sensor.quaternion[0]
+			self.imu_msg.orientation.x = self.sensor.quaternion[1]
+			self.imu_msg.orientation.y = self.sensor.quaternion[2]
+			self.imu_msg.orientation.z = self.sensor.quaternion[3]
+			self.imu_msg.angular_velocity.x = self.sensor.gyro[0]
+			self.imu_msg.angular_velocity.y = self.sensor.gyro[1]
+			self.imu_msg.angular_velocity.z = self.sensor.gyro[2]
+			self.imu_msg.linear_acceleration.x = self.sensor.linear_acceleration[0]
+			self.imu_msg.linear_acceleration.y = self.sensor.linear_acceleration[1]
+			self.imu_msg.linear_acceleration.z = self.sensor.linear_acceleration[2]
+			self.imu_pub.publish(self.imu_msg)
+		except OSError:
+			rospy.logwarn("Imu cable is loose. Unable to obtain data")
 
 if __name__ == "__main__":
 	rospy.init_node("bno055_node")
