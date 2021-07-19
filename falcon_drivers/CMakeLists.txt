@@ -14,6 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   nav_msgs
+  std_srvs
+  marvelmind_nav
 )
 
 ## System dependencies are found with CMake's conventions
@@ -152,6 +154,12 @@ include_directories(
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
+
+add_executable(${PROJECT_NAME}_orientation_node src/initial_orientation.cpp)
+add_dependencies(${PROJECT_NAME}_orientation_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(${PROJECT_NAME}_orientation_node
+  ${catkin_LIBRARIES}
+)
 
 #############
 ## Install ##

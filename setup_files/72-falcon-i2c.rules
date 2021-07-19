@@ -1,0 +1,5 @@
+KERNEL=="i2c-1", GROUP="i2c"
+
+KERNEL=="ttyACM*", ATTRS{idProduct}=="5740", ATTRS{idVendor}=="0483", SYMLINK+="falcon_beacon"
+
+KERNEL=="ttyACM*", ATTRS{idProduct}=="2404", ATTRS{idVendor}=="03eb", SYMLINK+="falcon_roboclaw"
