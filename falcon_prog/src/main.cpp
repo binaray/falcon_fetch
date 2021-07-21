@@ -61,11 +61,12 @@ bool StateMachine::init(){
 	pn.param("x_step", x_step_, float(0.1));
 	pn.param("bound_padding", bound_padding_, float(0.1));
 	pn.param("stationary_threshold", stationary_threshold_, float(0.1));
+	pn.param("max_linear_speed", max_linear_speed_, float(0.1));
+	pn.param("max_angular_speed", max_angular_speed_, float(0.1));
 	pn.param("rotation_threshold", stationary_threshold_, float(0.05));
 	pn.param("distance_threshold", distance_threshold_, float(0.02));
 	pn.param("differential_movement_threshold", differential_movement_threshold_, float(0.1));
-	//pn.param<std::string>("waypoint_filepath", file_path_, "/waypoints.csv");
-	file_path_ = "/waypoints.csv";
+	pn.param("waypoint_filepath", file_path_, std::string("/waypoints.csv"));
 	
 	last_updated_timeout_ = ros::Duration(5);
 	immobile_timeout_ = ros::Duration(5);
@@ -529,21 +530,21 @@ void StateMachine::moveTowardsGoal(){
 		if (angle > rotation_threshold_){
 			if (angle > differential_movement_threshold_){
 				is_differential_movement = false;
-				cmd_vel_msg.angular.z = 0.5;
+				cmd_vel_msg.angular.z = max_linear_speed_;
 			}
 			else{
 				is_differential_movement = true;
-				cmd_vel_msg.angular.z = 0.1;
+				cmd_vel_msg.angular.z = max_linear_speed_;
 			}
 		}
 		else if (angle < -rotation_threshold_){
 			if (angle < -differential_movement_threshold_){
 				is_differential_movement = false;
-				cmd_vel_msg.angular.z = -0.5;
+				cmd_vel_msg.angular.z = max_angular_speed_;
 			}
 			else{
 				is_differential_movement = true;
-				cmd_vel_msg.angular.z = -0.1;
+				cmd_vel_msg.angular.z = -max_angular_speed_;
 			}
 		}
 		else is_differential_movement = true;

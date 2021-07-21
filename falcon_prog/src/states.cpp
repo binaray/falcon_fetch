@@ -11,9 +11,7 @@ void State::onInput(uint8_t input){ }
 State::~State(){}
 
 
-StartState::StartState(StateMachine *machine) : State(machine){
-	ROS_INFO("Falcon fetch program starting up");
-}
+StartState::StartState(StateMachine *machine) : State(machine){ ROS_INFO("Falcon fetch program starting up"); }
 void StartState::stateUpdate() { 
 	ROS_INFO_THROTTLE(5, "Waiting for beacons to startup.. Left: %d", machine->stationary_beacon_count_-machine->beacons_pos_.size());
 	if (machine->is_beacons_init_){
@@ -37,10 +35,10 @@ void RunState::stateUpdate(){
 	}
 	else{
 		if (ros::Time::now() - machine->current_pos_.last_updated > machine->last_updated_timeout_){
-			ROS_ERROR_THROTTLE(1, "Beacon signal lost. Waiting recovery...");
+			ROS_ERROR_THROTTLE(10, "Beacon signal lost. Waiting recovery...");
 		}
 		if (machine->is_immobile_){
-			ROS_WARN_THROTTLE(1, "Robot is immobile");
+			ROS_WARN_THROTTLE(10, "Robot is immobile");
 		}
 		machine->moveTowardsGoal();
 	}

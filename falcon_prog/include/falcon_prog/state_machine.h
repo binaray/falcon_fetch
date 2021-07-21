@@ -75,6 +75,8 @@ class StateMachine{
 		int stationary_beacon_count_;
 		float x_step_;
 		float bound_padding_;
+		float max_linear_speed_;
+		float max_angular_speed_;
 		float stationary_threshold_;
 		float rotation_threshold_;
 		float distance_threshold_;

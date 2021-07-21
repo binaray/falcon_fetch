@@ -7,7 +7,13 @@
 		<param name="stationary_beacon_count" value="4"/>
     <param name="x_step" value="0.2"/>
     <param name="bound_padding" value="0.1"/>
+    <param name="max_linear_speed" value="0.1"/>
+    <param name="max_angular_speed" value="0.1"/>
     <param name="stationary_threshold" value="0.02"/>
+    <param name="rotation_threshold" value="0.05"/>
+    <param name="distance_threshold" value="0.02"/>
+    <param name="differential_movement_threshold" value="0.1"/>
+    <param name="waypoint_filepath" value="/waypoints.csv"/>
   </node>
 	<node name="marvelmind_nav" pkg="marvelmind_nav" type="hedge_rcv_bin" args="$(arg beacon_port) $(arg baud_rate)"/>
 	<node name="falcon_imu" pkg="falcon_drivers" type="imu.py" respawn="true"/>
