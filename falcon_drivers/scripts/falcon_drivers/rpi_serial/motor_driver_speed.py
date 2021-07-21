@@ -29,8 +29,6 @@ class MotorDriver(object):
 		self.ENCODER_CPR = 20  #encoder CPR
 		self.GEAR_RATIO = 391 # Gear-ratio
 		self.PI = 3.14 
-		self.L = 1.6 # wheel base, old
-		self.R = 0.4 # Radius of the wheel, old
 		self.RADIUS = 0.05
 		self.WHEEL_BASE = 0.115+0.048
 		self.MAX_LINEAR_SPEED = 0.13
@@ -57,9 +55,7 @@ class MotorDriver(object):
 
 	def cmd_vel_cb(self, msg):
 		self.v_x = msg.linear.x
-		self.v_z = msg.angular.z
-		# should convert to pwm speed here rather than later
-		# any speed above max speed 
+		self.v_z = msg.angular.z 
 		self.w_left = 0.5*(self.v_x - (self.v_z * self.WHEEL_BASE))/(self.RADIUS*self.PI)  #wheel left
 		self.w_right = 0.5*(self.v_x + (self.v_z * self.WHEEL_BASE))/(self.RADIUS*self.PI) #wheel right 
 		self.w_qppsl = (self.w_left * self.ENCODER_CPR * self.GEAR_RATIO)
@@ -69,8 +65,8 @@ class MotorDriver(object):
 		self.write_speed("left", int(self.w_qppsl)) 
 		self.write_speed("right", int(self.w_qppsr)) 
 		# writing twice because sometimes it doesn't write properly
-		self.write_speed("left", int(self.w_qppsl)) 
-		self.write_speed("right", int(self.w_qppsr)) 
+		#self.write_speed("left", int(self.w_qppsl)) 
+		#self.write_speed("right", int(self.w_qppsr)) 
 
 	def write_speed(self, motor, speed):
 		if self.is_open:
@@ -146,6 +142,9 @@ class MotorDriver(object):
 				print("Left wheel rps: " + str(self.speed_left))
 			else:
 				rospy.logwarn_throttle(1, "Invalid left speed received from roboclaw")
+				# usually happens when the speed is not written properly. so, write the speed again
+				rospy.logwarn_throttle(0.2, "Attempting to write speed to left motor again")
+				self.write_speed("left", int(self.w_qppsl)) 
 			if(self.speed_qppsr[0]):
 				print("Right wheel qpps:"+str(self.speed_qppsr[1])+";  Written qpps:"+str(self.w_qppsr))
 				# convert from qpps to velocity
@@ -153,6 +152,9 @@ class MotorDriver(object):
 				print("Right wheel rps: " + str(self.speed_right))
 			else:
 				rospy.logwarn_throttle(1, "Invalid right speed received from roboclaw")
+				# usually happens when the speed is not written properly. so, write the speed again
+				rospy.logwarn_throttle(0.2, "Attempting to write speed to right motor again")
+				self.write_speed("right", int(self.w_qppsr)) 
 			self.speed_vx = (self.speed_right + self.speed_left)*(2*self.PI)*(self.RADIUS/2)
 			self.speed_vz = (self.speed_right - self.speed_left)*(2*self.PI)*(self.RADIUS/(2*self.WHEEL_BASE))
 			print("Robot speed - x: " + str(self.speed_vx) + " z: " + str(self.speed_vz))
