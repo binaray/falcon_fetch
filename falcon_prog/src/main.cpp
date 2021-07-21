@@ -513,9 +513,9 @@ float StateMachine::angleDifferenceToPoint(Position p){
 	p.x -= current_pos_.x;
 	p.y -= current_pos_.y;
 	
-	float angle = atan2(p.y, p.x);
+	float angle = abs(atan2(p.y, p.x));
 	if (p.x<0) {
-		angle = (p.y<0) ? angle-M_PI : angle+M_PI;
+		angle = (p.y<0) ? angle-M_PI : M_PI-angle;
 	}
 	else{
 		if (p.y<0) angle = -angle;

@@ -65,8 +65,8 @@ class MotorDriver(object):
 		self.write_speed("left", int(self.w_qppsl)) 
 		self.write_speed("right", int(self.w_qppsr)) 
 		# writing twice because sometimes it doesn't write properly
-		#self.write_speed("left", int(self.w_qppsl)) 
-		#self.write_speed("right", int(self.w_qppsr)) 
+		self.write_speed("left", int(self.w_qppsl)) 
+		self.write_speed("right", int(self.w_qppsr)) 
 
 	def write_speed(self, motor, speed):
 		if self.is_open:
@@ -80,7 +80,7 @@ class MotorDriver(object):
 
 	def publish_wheel_odom(self):
 		if self.is_open:
-			self.read_encoder()
+			#self.read_encoder()
 			self.read_speed()
 			self.dt = (self.current_time - self.last_time).to_sec();
 			self.dx = (self.speed_vx * math.cos(self.th) - self.speed_vy * math.sin(self.th)) * self.dt;
@@ -143,8 +143,8 @@ class MotorDriver(object):
 			else:
 				rospy.logwarn_throttle(1, "Invalid left speed received from roboclaw")
 				# usually happens when the speed is not written properly. so, write the speed again
-				rospy.logwarn_throttle(0.2, "Attempting to write speed to left motor again")
-				self.write_speed("left", int(self.w_qppsl)) 
+				#rospy.logwarn_throttle(0.2, "Attempting to write speed to left motor again")
+				#self.write_speed("left", int(self.w_qppsl)) 
 			if(self.speed_qppsr[0]):
 				print("Right wheel qpps:"+str(self.speed_qppsr[1])+";  Written qpps:"+str(self.w_qppsr))
 				# convert from qpps to velocity
@@ -153,8 +153,8 @@ class MotorDriver(object):
 			else:
 				rospy.logwarn_throttle(1, "Invalid right speed received from roboclaw")
 				# usually happens when the speed is not written properly. so, write the speed again
-				rospy.logwarn_throttle(0.2, "Attempting to write speed to right motor again")
-				self.write_speed("right", int(self.w_qppsr)) 
+				#rospy.logwarn_throttle(0.2, "Attempting to write speed to right motor again")
+				#self.write_speed("right", int(self.w_qppsr)) 
 			self.speed_vx = (self.speed_right + self.speed_left)*(2*self.PI)*(self.RADIUS/2)
 			self.speed_vz = (self.speed_right - self.speed_left)*(2*self.PI)*(self.RADIUS/(2*self.WHEEL_BASE))
 			print("Robot speed - x: " + str(self.speed_vx) + " z: " + str(self.speed_vz))

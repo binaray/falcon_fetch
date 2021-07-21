@@ -28,12 +28,16 @@ namespace InitialOrientation{
 	bool is_orientation_ok_ = false;
 	double roll_, pitch_, yaw_;
   tf::Quaternion quat_;
+  double global_yaw_;
+  ros::Time last_imu_time_;
+  bool imu_disconnected_;
 	
 	bool findOrientation(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res){
 	//subscribe to imu and hedge. move robot at 0.10m/s for 1 s. find the angle relative to x axis 
 		ROS_INFO("Called find orientation srv. Initializing...");
 		initial_x_ = current_x_;
 		initial_y_ = current_y_;
+		ROS_INFO("Initial x,y: %f, %f", initial_x_, initial_y_);
 		geometry_msgs::Twist cmd_vel_msg;
 		cmd_vel_msg.linear.x = 0.1;
 		cmd_vel_publisher_.publish(cmd_vel_msg);
@@ -48,7 +52,8 @@ namespace InitialOrientation{
 		ROS_INFO("Waiting for robot to come to a stop");
 		ros::Rate sleep_rate(1);
 		sleep_rate.sleep();
-		basic_angle_ = atan((current_x_ - initial_x_)/(current_y_ - initial_y_));
+		ROS_INFO("Final x,y: %f, %f", current_x_, current_y_);
+		basic_angle_ = abs(atan((current_y_ - initial_y_)/(current_x_ - initial_x_)));
 		if(current_x_>initial_x_){
 			if(current_y_>initial_y_) final_angle_ = basic_angle_;
 			else final_angle_ = -basic_angle_;
@@ -66,8 +71,16 @@ namespace InitialOrientation{
 	}
 	
 	void publishRobotYaw(){
+		// only start to pubblish when global orientation has been found
 		if(is_orientation_ok_){
+			// if imu disconnects based on timeout from callback, recalulate the offset angle based on prev global yaw value. do not have to redo orientation fix.
+			// although if disconnected while turning, the angle would be very off
+			/*if(imu_disconnected_){
+				offset_angle_ = global_yaw_ - yaw_;
+			}	
+			*/
 			// need to take into account of the global(to beacon) and relative(to robot) orientation
+			//global_yaw_ = fmod((yaw_+ offset_angle_),M_PI);
 			yaw_msg_.data = fmod((yaw_+ offset_angle_),M_PI);
 			if(yaw_msg_.data > M_PI) yaw_msg_.data = yaw_msg_.data - 2*M_PI;
 			if(yaw_msg_.data < -M_PI) yaw_msg_.data = yaw_msg_.data+2*M_PI;
@@ -85,6 +98,10 @@ namespace InitialOrientation{
 		//orientation_z_ = msg->orientation.z;
   	tf::quaternionMsgToTF(msg->orientation, quat_);
   	tf::Matrix3x3(quat_).getRPY(roll_, pitch_, yaw_);
+  	/*if(ros::Time::now() - last_imu_time_ > ros::Duration(0.5)) imu_disconnected_ = true;
+  	else imu_disconnected_ = false;
+  	last_imu_time_ = ros::Time::now();
+  	*/
 	}
 
 }
