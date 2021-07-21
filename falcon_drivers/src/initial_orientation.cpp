@@ -1,6 +1,7 @@
 #include "ros/ros.h"
 #include "geometry_msgs/Twist.h"
 #include "marvelmind_nav/hedge_imu_fusion.h"
+#include "marvelmind_nav/hedge_pos_ang.h"
 #include "sensor_msgs/Imu.h"
 #include "std_srvs/Trigger.h"
 #include "std_msgs/Float64.h"
@@ -80,15 +81,15 @@ namespace InitialOrientation{
 			}	
 			*/
 			// need to take into account of the global(to beacon) and relative(to robot) orientation
-			//global_yaw_ = fmod((yaw_+ offset_angle_),M_PI);
-			yaw_msg_.data = fmod((yaw_+ offset_angle_),M_PI);
-			if(yaw_msg_.data > M_PI) yaw_msg_.data = yaw_msg_.data - 2*M_PI;
-			if(yaw_msg_.data < -M_PI) yaw_msg_.data = yaw_msg_.data+2*M_PI;
+			//global_yaw_ = fmod((yaw_+ offset_angle_),2*M_PI);
+			yaw_msg_.data = fmod((yaw_+ offset_angle_),2*M_PI); // keep angle within 0 to 2pi
+			if(yaw_msg_.data > M_PI) yaw_msg_.data -= 2*M_PI; // keep angle between -pi to pi
+			if(yaw_msg_.data < -M_PI) yaw_msg_.data += 2*M_PI; // keep angle between -pi to pi
 			robot_yaw_publisher_.publish(yaw_msg_);
 		}
 	}
 
-	void hedgeCallback(const marvelmind_nav::hedge_imu_fusion msg){
+	void hedgeCallback(const marvelmind_nav::hedge_pos_ang msg){
 		current_x_ = msg.x_m;
 		current_y_ = msg.y_m;
 	}
@@ -112,7 +113,7 @@ int main(int argc, char **argv){
 	ros::Rate loop_rate(10);
 	ROS_INFO("Initializing falcon initial orientation node!");
 
-	InitialOrientation::hedge_subscriber_ = nh.subscribe<marvelmind_nav::hedge_imu_fusion>("hedge_imu_fusion", 10, InitialOrientation::hedgeCallback);
+	InitialOrientation::hedge_subscriber_ = nh.subscribe<marvelmind_nav::hedge_pos_ang>("hedge_pos_ang", 10, InitialOrientation::hedgeCallback);
 	InitialOrientation::imu_subscriber_ = nh.subscribe<sensor_msgs::Imu>("bno055_imu/data", 10, InitialOrientation::imuCallback);
 	InitialOrientation::cmd_vel_publisher_ = nh.advertise<geometry_msgs::Twist>("cmd_vel", 10);
 	InitialOrientation::robot_yaw_publisher_ = nh.advertise<std_msgs::Float64>("robot_yaw", 10);

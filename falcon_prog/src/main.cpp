@@ -61,8 +61,8 @@ bool StateMachine::init(){
 	pn.param("x_step", x_step_, float(0.1));
 	pn.param("bound_padding", bound_padding_, float(0.1));
 	pn.param("stationary_threshold", stationary_threshold_, float(0.1));
-	pn.param("max_linear_speed", max_linear_speed_, float(0.1));
-	pn.param("max_angular_speed", max_angular_speed_, float(0.1));
+	pn.param("max_linear_speed", max_linear_speed_, float(0.15));
+	pn.param("max_angular_speed", max_angular_speed_, float(1.0));
 	pn.param("rotation_threshold", stationary_threshold_, float(0.05));
 	pn.param("distance_threshold", distance_threshold_, float(0.02));
 	pn.param("differential_movement_threshold", differential_movement_threshold_, float(0.1));
@@ -75,7 +75,7 @@ bool StateMachine::init(){
 	stationary_pos_ = 0;
 	
 	beacons_pos_subscriber_ = n_.subscribe<marvelmind_nav::beacon_pos_a>("beacons_pos_a", 10, &StateMachine::beaconsPosCallback, this);
-	current_pos_subscriber_ = n_.subscribe<marvelmind_nav::hedge_imu_fusion>("hedge_imu_fusion", 10, &StateMachine::currentPosCallback, this);
+	current_pos_subscriber_ = n_.subscribe<marvelmind_nav::hedge_pos_ang>("hedge_pos_ang", 10, &StateMachine::currentPosCallback, this);
 	current_yaw_subscriber_ = n_.subscribe<std_msgs::Float64>("robot_yaw", 10, &StateMachine::currentYawCallback, this);
 	rviz_marker_publisher_ = n_.advertise<visualization_msgs::Marker>("visualization_marker", 100, true);	// Declare publisher for rviz visualization
 	cmd_velocity_publisher_  = n_.advertise<geometry_msgs::Twist>("cmd_vel", 10);
@@ -347,6 +347,7 @@ void StateMachine::generateMoveGoals(){
 	
 	
 	/*-- cross configuration --*/
+	
 	auto it = beacons_pos_.cbegin();
 	Position left_most_p = (*it).second;
 	Position bottom_most_p = (*it).second;
@@ -390,6 +391,14 @@ void StateMachine::generateMoveGoals(){
 	right_most_p.x,right_most_p.y,
 	left_most_p.x,left_most_p.y);
 	
+	// generate one goal in the middle of beacons
+	/*
+	Position p;
+	p.x = (left_most_p.x+right_most_p.x)/2;
+	p.y = (top_most_p.y+bottom_most_p.y)/2;
+	move_goals_.push_back(p);
+	*/
+	
 	/*
 	Position y_v = getVector(top_most_p, bottom_most_p);
 	Position x_v = getVector(right_most_p, left_most_p);
@@ -409,6 +418,7 @@ void StateMachine::generateMoveGoals(){
 	//x_v.x,x_v.y);
 	x_v.x=x_step_;
 	x_v.y=0;*/
+	
 	
 	Position p;
 	bool is_going_up = true;
@@ -468,7 +478,7 @@ bool StateMachine::publishNextMoveGoal(){
 		return false;
 	}
 	goal_reached_ = false;
-	ROS_INFO("Goal set. Remainding: %d points", move_goals_.size() - current_goal_index_);
+	ROS_INFO("Goal set. Remainding: %ld points", move_goals_.size() - current_goal_index_);
 	return true;
 }
 
@@ -510,21 +520,26 @@ bool StateMachine::readPointsFromFile(std_srvs::Empty::Request &req, std_srvs::E
 }
 
 float StateMachine::angleDifferenceToPoint(Position p){
+	//ROS_INFO("POINT: %f,%f. ROBOT POSITION: %f,%f.",p.x,p.y,current_pos_.x,current_pos_.y);
 	p.x -= current_pos_.x;
 	p.y -= current_pos_.y;
 	
 	float angle = abs(atan2(p.y, p.x));
 	if (p.x<0) {
-		angle = (p.y<0) ? angle-M_PI : M_PI-angle;
+		if (p.y<0) angle = -angle;
 	}
 	else{
 		if (p.y<0) angle = -angle;
 	}
 	ROS_INFO("Relative angle from current position: %f", angle);
-	float result = angle - current_rad_;
-	if (result>M_PI){
+	float result = fmod((angle - current_rad_),2*M_PI);
+	if (result > M_PI) result -= 2*M_PI;
+	else if (result < -M_PI) result += 2*M_PI;
+	/*if (result>M_PI){
 		result = -angle + current_rad_; 
 	}
+	*/
+	
 	ROS_INFO("Relative angle from current orientation: %f", result);	
 	return result;
 }
@@ -541,11 +556,11 @@ void StateMachine::moveTowardsGoal(){
 		if (angle > rotation_threshold_){
 			if (angle > differential_movement_threshold_){
 				is_differential_movement = false;
-				cmd_vel_msg.angular.z = max_linear_speed_;
+				cmd_vel_msg.angular.z = -max_angular_speed_;
 			}
 			else{
 				is_differential_movement = true;
-				cmd_vel_msg.angular.z = max_linear_speed_;
+				cmd_vel_msg.angular.z = -max_angular_speed_;
 			}
 		}
 		else if (angle < -rotation_threshold_){
@@ -555,13 +570,13 @@ void StateMachine::moveTowardsGoal(){
 			}
 			else{
 				is_differential_movement = true;
-				cmd_vel_msg.angular.z = -max_angular_speed_;
+				cmd_vel_msg.angular.z = max_angular_speed_;
 			}
 		}
 		else is_differential_movement = true;
 		
 		// linear movement is only present when angle difference is small enough
-		if (is_differential_movement) cmd_vel_msg.linear.x = 0.5;
+		if (is_differential_movement) cmd_vel_msg.linear.x = max_linear_speed_;
 		ROS_INFO_THROTTLE(1, "Moving to [%d] (%f,%f) linear: %f ang: %f",current_goal_index_,move_goals_[current_goal_index_].x,move_goals_[current_goal_index_].y,cmd_vel_msg.linear.x,cmd_vel_msg.angular.z);
 	}
 	else{
@@ -590,7 +605,7 @@ void StateMachine::beaconsPosCallback(const marvelmind_nav::beacon_pos_a msg){
 	showRvizPos(data, msg.address, false);
 }
 
-void StateMachine::currentPosCallback(const marvelmind_nav::hedge_imu_fusion msg){
+void StateMachine::currentPosCallback(const marvelmind_nav::hedge_pos_ang msg){
 	current_pos_.x = msg.x_m;
 	current_pos_.y = msg.y_m;
 	current_pos_.last_updated = ros::Time::now();

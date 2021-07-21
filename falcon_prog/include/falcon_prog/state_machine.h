@@ -101,7 +101,7 @@ class StateMachine{
 		ros::ServiceClient orientation_estimate_client_;
 
 		void beaconsPosCallback(const marvelmind_nav::beacon_pos_a msg);
-		void currentPosCallback(const marvelmind_nav::hedge_imu_fusion msg);
+		void currentPosCallback(const marvelmind_nav::hedge_pos_ang msg);
 		void currentYawCallback(const std_msgs::Float64 msg);
 		
 		bool init();
