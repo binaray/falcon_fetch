@@ -513,9 +513,20 @@ float StateMachine::angleDifferenceToPoint(Position p){
 	p.x -= current_pos_.x;
 	p.y -= current_pos_.y;
 	
-	float angle = atan2(p.x, p.y);
+	float angle = atan2(p.y, p.x);
+	if (p.x<0) {
+		angle = (p.y<0) ? angle-M_PI : angle+M_PI;
+	}
+	else{
+		if (p.y<0) angle = -angle;
+	}
 	ROS_INFO("Relative angle from current position: %f", angle);
-	return current_rad_ + angle;
+	float result = angle - current_rad_;
+	if (result>M_PI){
+		result = -angle + current_rad_; 
+	}
+	ROS_INFO("Relative angle from current orientation: %f", result);	
+	return result;
 }
 
 void StateMachine::moveTowardsGoal(){
