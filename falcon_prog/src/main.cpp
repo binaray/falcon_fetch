@@ -494,15 +494,16 @@ bool StateMachine::publishNextMoveGoal(){
 }
 
 bool StateMachine::writeCurrentPosToFile(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res){
-	std::ofstream myfile(file_path_);
-	for(int i=0; i < move_goals_.size(); i++){
-		myfile<<move_goals_[i].x <<","<<move_goals_[i].y<<"\n";
-	}
+	ROS_INFO("Writing to path: %s", file_path_.c_str());
+	std::ofstream myfile; //(file_path_);
+	myfile.open(file_path_, std::fstream::app);
+	myfile<<current_pos_.x <<","<<current_pos_.y<<"\n";
 	myfile.close();
 	return true;
 }
 
 bool StateMachine::clearPointsInFile(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res){
+	ROS_INFO("Deleting all waypoints");
 	move_goals_.clear();
 	std::ofstream myfile(file_path_);
 	myfile.open(file_path_, std::ofstream::out | std::ofstream::trunc);
@@ -511,6 +512,7 @@ bool StateMachine::clearPointsInFile(std_srvs::Empty::Request &req, std_srvs::Em
 }
 
 bool StateMachine::readPointsFromFile(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res){
+	ROS_INFO("Reading waypoints from path: %s", file_path_.c_str());
 	move_goals_.clear();
 	std::ifstream myfile;
 	myfile.open(file_path_);
@@ -580,6 +582,8 @@ void StateMachine::moveTowardsGoal(){
 		if (angle > -rotation_threshold_ && angle < rotation_threshold_){
 			cmd_vel_msg.linear.x = (d>inflation_radius_) ? max_linear_speed_: d/inflation_radius_ * (max_linear_speed_ - min_linear_speed_) + min_linear_speed_;
 		}
+		ROS_INFO("Moving to [%d] (%f,%f) linear: %f ang: %f",current_goal_index_,move_goals_[current_goal_index_].x,move_goals_[current_goal_index_].y,cmd_vel_msg.linear.x,cmd_vel_msg.angular.z);
+		updateRvizMoveGoal(current_goal_index_, 1);
 	}
 	else{
 		ROS_INFO("Goal reached.");
@@ -588,10 +592,7 @@ void StateMachine::moveTowardsGoal(){
 		cmd_vel_msg.angular.z = 0.0;
 		cmd_vel_msg.linear.x = 0.0;
 	}
-	ros::spinOnce();
-	
-	ROS_INFO("Moving to [%d] (%f,%f) linear: %f ang: %f",current_goal_index_,move_goals_[current_goal_index_].x,move_goals_[current_goal_index_].y,cmd_vel_msg.linear.x,cmd_vel_msg.angular.z);
-	updateRvizMoveGoal(current_goal_index_, 1);
+	//ros::spinOnce();
 	cmd_velocity_publisher_.publish(cmd_vel_msg);
 }
 

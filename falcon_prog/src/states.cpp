@@ -27,7 +27,6 @@ RunState::RunState(StateMachine *machine) : State(machine){
 	if(!machine->publishNextMoveGoal()) {
 		ROS_ERROR("Something went wrong: No points found..");
 	}
-	machine->goal_reached_ = false;
 }
 void RunState::stateUpdate(){
 	if (machine->goal_reached_){
