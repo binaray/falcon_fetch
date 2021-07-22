@@ -81,6 +81,8 @@ namespace VideoSaver{
 	float current_y_;
 	float current_yaw_;
 	
+	bool is_recording_ = false;
+	
 
   void saveVideoCallback(const ros::TimerEvent& event){
 		file_count_ ++;
@@ -190,7 +192,7 @@ namespace VideoSaver{
 		ROS_INFO("Camera log file path: %s", camera_log_file_name_.c_str());
 		// if file exists, delete
 		file_.open(camera_log_file_name_, std::ios::out | std::ios::trunc);
-		file_ << "Start time: " << asctime(time_) << ",,,";
+		file_ << "Start time: " << asctime(time_);
 		file_.close();
 
 		// delete folder after 7 days
@@ -240,8 +242,6 @@ void callback(const sensor_msgs::ImageConstPtr& image_msg)
         }
 
         ROS_INFO_STREAM("Starting to record " << codec << " video at " << size << "@" << fps << "fps. Press Ctrl+C to stop recording." );
-		// start time stamp
-		VideoSaver::cam_start_time_ = ros::Time::now();
 
     }
 
@@ -251,33 +251,41 @@ void callback(const sensor_msgs::ImageConstPtr& image_msg)
       return;
     }
 
-    try
-    {
-      cv_bridge::CvtColorForDisplayOptions options;
-      options.do_dynamic_scaling = use_dynamic_range;
-      options.min_image_value = min_depth_range;
-      options.max_image_value = max_depth_range;
-      options.colormap = colormap;
-      const cv::Mat image = cv_bridge::cvtColorForDisplay(cv_bridge::toCvShare(image_msg), encoding, options)->image;
-      if (!image.empty()) {
-        outputVideo << image;
-	// save timestamp of frames
-		VideoSaver::recordTimestamp();
-        //ROS_INFO_STREAM("Recording frame " << g_count << "\x1b[1F");
-        g_count++;
-        g_last_wrote_time = image_msg->header.stamp;
-      } else {
-          ROS_WARN("Frame skipped, no data!");
-      }
-			if(filename!=VideoSaver::file_name_){
-		  	outputVideo.release();
-				return;
-			}
-    } catch(cv_bridge::Exception)
-    {
-        ROS_ERROR("Unable to convert %s image to %s", image_msg->encoding.c_str(), encoding.c_str());
-        return;
-    }
+		if(VideoSaver::is_recording_){
+		  try
+		  {
+		    cv_bridge::CvtColorForDisplayOptions options;
+		    options.do_dynamic_scaling = use_dynamic_range;
+		    options.min_image_value = min_depth_range;
+		    options.max_image_value = max_depth_range;
+		    options.colormap = colormap;
+		    const cv::Mat image = cv_bridge::cvtColorForDisplay(cv_bridge::toCvShare(image_msg), encoding, options)->image;
+		    if (!image.empty()) {
+		      outputVideo << image;
+		// save timestamp of frames
+			VideoSaver::recordTimestamp();
+		      //ROS_INFO_STREAM("Recording frame " << g_count << "\x1b[1F");
+		      g_count++;
+		      g_last_wrote_time = image_msg->header.stamp;
+		      ros::spinOnce();
+		    } else {
+		        ROS_WARN("Frame skipped, no data!");
+		    }
+				if(filename!=VideoSaver::file_name_){
+					outputVideo.release();
+					return;
+				}
+		  } catch(cv_bridge::Exception)
+		  {
+		      ROS_ERROR("Unable to convert %s image to %s", image_msg->encoding.c_str(), encoding.c_str());
+		      return;
+		  }
+	  }
+	  else{
+	  	ROS_INFO_THROTTLE(5, "Waiting for recording trigger to record video.");
+			// start time stamp
+			VideoSaver::cam_start_time_ = ros::Time::now();
+		}
 }
 
 
@@ -341,8 +349,15 @@ int main(int argc, char** argv)
     
     VideoSaver::current_pos_subscriber_ = nh.subscribe<marvelmind_nav::hedge_pos_ang>("hedge_pos_ang", 10, VideoSaver::currentPosCallback);
     VideoSaver::current_yaw_subscriber_ = nh.subscribe<std_msgs::Float64>("robot_yaw", 10, VideoSaver::currentYawCallback);
+    ros::param::get("/is_recording", VideoSaver::is_recording_);
+    
+    ros::Rate loop_rate(10);
     
     ROS_INFO_STREAM("Waiting for topic " << topic << "...");
-    ros::spin();
-    std::cout << "\nVideo saved as " << VideoSaver::file_name_ << std::endl;
+    while(ros::ok()){
+    	ros::spinOnce();
+    	loop_rate.sleep();
+	    ros::param::get("/is_recording", VideoSaver::is_recording_);
+  	}
+    //std::cout << "\nVideo saved as " << VideoSaver::file_name_ << std::endl;
 }
