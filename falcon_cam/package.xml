@@ -24,6 +24,9 @@
   <depend>move_base_msgs</depend>
   <depend>image_transport</depend>
   <depend>camera_calibration_parsers</depend>
+  <build_depend>marvelmind_nav</build_depend>
+  <build_export_depend>marvelmind_nav</build_export_depend>
+  <exec_depend>marvelmind_nav</exec_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

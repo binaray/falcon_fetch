@@ -29,6 +29,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include "marvelmind_nav/hedge_pos_ang.h"
+#include "std_msgs/Float64.h"
 
 #if CV_MAJOR_VERSION == 3
 #include <opencv2/videoio.hpp>
@@ -72,6 +74,13 @@ namespace VideoSaver{
 	int cam_hr_timestamp_;
 	int cam_min_timestamp_;
 	float cam_sec_timestamp_;
+	
+	ros::Subscriber current_pos_subscriber_;
+	ros::Subscriber current_yaw_subscriber_;
+	float current_x_;
+	float current_y_;
+	float current_yaw_;
+	
 
   void saveVideoCallback(const ros::TimerEvent& event){
 		file_count_ ++;
@@ -112,7 +121,7 @@ namespace VideoSaver{
 		cam_current_time_ = ros::Time::now();
 		cam_timestamp_ = cam_current_time_ - cam_start_time_;
 		file_.open(camera_log_file_name_, std::fstream::app);
-		file_ <<cam_timestamp_<< "," << " \n";
+		file_ <<cam_timestamp_<< "," << current_x_ << "," << current_y_ << "," << current_yaw_ << "\n";
 		/*
 		cam_timestamp_ = (cam_current_time_ - cam_start_time_).toSec();
 		cam_hr_timestamp_ = cam_timestamp_/3600;
@@ -190,6 +199,15 @@ namespace VideoSaver{
 		ROS_WARN("Deleting 7 days old worth of videos in %s", file_dir_.c_str());
 		boost::filesystem::remove_all(file_dir_);
   }
+  
+  void currentPosCallback(const marvelmind_nav::hedge_pos_ang msg){
+		current_x_ = msg.x_m;
+		current_y_ = msg.y_m;
+	}
+	
+  void currentYawCallback(const std_msgs::Float64 msg){
+		current_yaw_ = msg.data;
+	}
 
 }
 
@@ -320,7 +338,10 @@ int main(int argc, char** argv)
     image_transport::ImageTransport it(nh);
     std::string topic = nh.resolveName("image");
     image_transport::Subscriber sub_image = it.subscribe(topic, 1, callback);
-
+    
+    VideoSaver::current_pos_subscriber_ = nh.subscribe<marvelmind_nav::hedge_pos_ang>("hedge_pos_ang", 10, VideoSaver::currentPosCallback);
+    VideoSaver::current_yaw_subscriber_ = nh.subscribe<std_msgs::Float64>("robot_yaw", 10, VideoSaver::currentYawCallback);
+    
     ROS_INFO_STREAM("Waiting for topic " << topic << "...");
     ros::spin();
     std::cout << "\nVideo saved as " << VideoSaver::file_name_ << std::endl;
