@@ -63,7 +63,7 @@ bool StateMachine::init(){
 	pn.param("stationary_threshold", stationary_threshold_, float(0.1));
 	pn.param("max_linear_speed", max_linear_speed_, float(0.15));
 	pn.param("max_angular_speed", max_angular_speed_, float(1.0));
-	pn.param("rotation_threshold", stationary_threshold_, float(0.05));
+	pn.param("rotation_threshold", rotation_threshold_, float(0.05));
 	pn.param("distance_threshold", distance_threshold_, float(0.02));
 	pn.param("differential_movement_threshold", differential_movement_threshold_, float(0.1));
 	pn.param("waypoint_filepath", file_path_, std::string("/waypoints.csv"));
@@ -172,7 +172,7 @@ void StateMachine::showRvizMoveGoals(){
 	
 	for (int i=0; i<move_goals_.size(); i++){
 		marker.id = i;	// index used as marker address
-	    marker.pose.position.x = move_goals_[i].x;
+	  marker.pose.position.x = move_goals_[i].x;
 		marker.pose.position.y = move_goals_[i].y;
 		marker.pose.position.z = 0;
 		rviz_marker_publisher_.publish(marker);
@@ -201,9 +201,16 @@ void StateMachine::updateRvizMoveGoal(int address, int status){
     marker.scale.y = 0.05*SCALE_HEDGE;
     marker.scale.z = 0.02*SCALE_HEDGE;
     // Set the color -- be sure to set alpha to something non-zero!
-	marker.color.r = 0.5f;
-	marker.color.g = 0.5f;
-	marker.color.b = 0.5f;
+  if (status==0){
+		marker.color.r = 0.5f;
+		marker.color.g = 0.5f;
+		marker.color.b = 0.5f;
+	}
+	else if (status==1){
+		marker.color.r = 0;
+		marker.color.g = 0;
+		marker.color.b = 0.5f;
+	}
     marker.color.a = 1.0;
     marker.lifetime = ros::Duration(0); //-forever- 
 	
@@ -546,46 +553,47 @@ float StateMachine::angleDifferenceToPoint(Position p){
 
 void StateMachine::moveTowardsGoal(){
 	geometry_msgs::Twist cmd_vel_msg;	
+	float inflation_radius_ = 0.05;
+	float rotation_falloff_ = 0.4;
+	float min_linear_speed_ = 0.05;
+	float min_angular_speed_ = 0.2;
 	
-	if (distanceBetweenVectors(current_pos_, move_goals_[current_goal_index_]) > distance_threshold_){		
+	float d = distanceBetweenVectors(current_pos_, move_goals_[current_goal_index_]);
+	
+	if (d > distance_threshold_){		
 		//check robot direction with goal
 		float angle = angleDifferenceToPoint(move_goals_[current_goal_index_]);
 		bool is_differential_movement;
 		
 		//rotate towards goal
 		if (angle > rotation_threshold_){
-			if (angle > differential_movement_threshold_){
-				is_differential_movement = false;
-				cmd_vel_msg.angular.z = -max_angular_speed_;
+			if (angle < rotation_falloff_){
+				cmd_vel_msg.angular.z = angle/rotation_falloff_ * (max_angular_speed_ - min_angular_speed_) + min_angular_speed_;
 			}
-			else{
-				is_differential_movement = true;
-				cmd_vel_msg.angular.z = -max_angular_speed_;
-			}
+			else cmd_vel_msg.angular.z = max_angular_speed_;
 		}
 		else if (angle < -rotation_threshold_){
-			if (angle < -differential_movement_threshold_){
-				is_differential_movement = false;
-				cmd_vel_msg.angular.z = max_angular_speed_;
+			if (angle > -rotation_falloff_){
+				cmd_vel_msg.angular.z = -angle/rotation_falloff_ * (max_angular_speed_ - min_angular_speed_) - min_angular_speed_;
 			}
-			else{
-				is_differential_movement = true;
-				cmd_vel_msg.angular.z = max_angular_speed_;
-			}
+			else cmd_vel_msg.angular.z = -max_angular_speed_;
 		}
-		else is_differential_movement = true;
-		
-		// linear movement is only present when angle difference is small enough
-		if (is_differential_movement) cmd_vel_msg.linear.x = max_linear_speed_;
-		ROS_INFO_THROTTLE(1, "Moving to [%d] (%f,%f) linear: %f ang: %f",current_goal_index_,move_goals_[current_goal_index_].x,move_goals_[current_goal_index_].y,cmd_vel_msg.linear.x,cmd_vel_msg.angular.z);
+		if (angle > -rotation_threshold_ && angle < rotation_threshold_){
+				cmd_vel_msg.linear.x = (d>inflation_radius_) ? max_linear_speed_: d/inflation_radius_ * (max_linear_speed_ - min_linear_speed_) + min_linear_speed_;
+		}
 	}
 	else{
 		ROS_INFO("Goal reached.");
-		updateRvizMoveGoal(current_goal_index_, 1);
+		updateRvizMoveGoal(current_goal_index_, 0);
 		goal_reached_ = true;
+		cmd_vel_msg.angular.z = 0.0;
+		cmd_vel_msg.linear.x = 0.0;
 	}
-		
-	//cmd_velocity_publisher_.publish(cmd_vel_msg);
+	ros::spinOnce();
+	
+	ROS_INFO("Moving to [%d] (%f,%f) linear: %f ang: %f",current_goal_index_,move_goals_[current_goal_index_].x,move_goals_[current_goal_index_].y,cmd_vel_msg.linear.x,cmd_vel_msg.angular.z);
+	updateRvizMoveGoal(current_goal_index_, 1);
+	cmd_velocity_publisher_.publish(cmd_vel_msg);
 }
 
 void StateMachine::beaconsPosCallback(const marvelmind_nav::beacon_pos_a msg){

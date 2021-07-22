@@ -34,7 +34,7 @@ class MotorDriver(object):
 		self.MAX_LINEAR_SPEED = 0.13
 		self.MAX_ANGULAR_SPEED = 0.63
 
-		self.cmd_vel_sub = rospy.Subscriber("cmd_vel", Twist, self.cmd_vel_cb)
+		self.cmd_vel_sub = rospy.Subscriber("cmd_vel", Twist, self.cmd_vel_cb, queue_size=1)
 		self.wheel_odom_pub = rospy.Publisher("wheel_odom", Odometry, queue_size=10)
 
 		self.odom_msg = Odometry()
@@ -42,6 +42,8 @@ class MotorDriver(object):
 		# setting to 0 
 		self.w_qppsl = 0
 		self.w_qppsr = 0
+		self.old_w_qppsl = 0
+		self.old_w_qppsr = 0
 		
 		self.last_time = rospy.get_rostime()
 		self.current_time = rospy.get_rostime()
@@ -60,13 +62,18 @@ class MotorDriver(object):
 		self.w_right = 0.5*(self.v_x + (self.v_z * self.WHEEL_BASE))/(self.RADIUS*self.PI) #wheel right 
 		self.w_qppsl = (self.w_left * self.ENCODER_CPR * self.GEAR_RATIO)
 		self.w_qppsr = (self.w_right * self.ENCODER_CPR * self.GEAR_RATIO)
-		rospy.loginfo("Writing speeds to motors - Left: %2f, Right: %2f", self.w_left, self.w_right)
+		#rospy.loginfo("Writing speeds to motors - Left: %2f, Right: %2f", self.w_left, self.w_right)
 		rospy.loginfo("qpps to motors - Left: %d, Right: %d", int(self.w_qppsl), int(self.w_qppsr))
-		self.write_speed("left", int(self.w_qppsl)) 
-		self.write_speed("right", int(self.w_qppsr)) 
+		# only write speed when the speed is different
+		if(self.w_qppsl!=self.old_w_qppsl):
+			self.write_speed("left", int(self.w_qppsl)) 
+			self.old_w_qppsl = self.w_qppsl
+		if(self.w_qppsr!=self.old_w_qppsr):
+			self.write_speed("right", int(self.w_qppsr)) 
+			self.old_w_qppsr = self.w_qppsr
 		# writing twice because sometimes it doesn't write properly
-		self.write_speed("left", int(self.w_qppsl)) 
-		self.write_speed("right", int(self.w_qppsr)) 
+		#self.write_speed("left", int(self.w_qppsl)) 
+		#self.write_speed("right", int(self.w_qppsr)) 
 
 	def write_speed(self, motor, speed):
 		if self.is_open:
@@ -136,20 +143,20 @@ class MotorDriver(object):
 			self.speed_qppsl = self.rc.ReadSpeedM2(self.address)
 			
 			if(self.speed_qppsl[0]):
-				print("Left wheel qpps:"+str(self.speed_qppsl[1])+";  Written qpps:"+str(self.w_qppsl))
+				#print("Left wheel qpps:"+str(self.speed_qppsl[1])+";  Written qpps:"+str(self.w_qppsl))
 				# convert from qpps to velocity
 				self.speed_left = (self.speed_qppsl[1])/(self.ENCODER_CPR*self.GEAR_RATIO)
-				print("Left wheel rps: " + str(self.speed_left))
+				#print("Left wheel rps: " + str(self.speed_left))
 			else:
 				rospy.logwarn_throttle(1, "Invalid left speed received from roboclaw")
 				# usually happens when the speed is not written properly. so, write the speed again
 				#rospy.logwarn_throttle(0.2, "Attempting to write speed to left motor again")
 				#self.write_speed("left", int(self.w_qppsl)) 
 			if(self.speed_qppsr[0]):
-				print("Right wheel qpps:"+str(self.speed_qppsr[1])+";  Written qpps:"+str(self.w_qppsr))
+				#print("Right wheel qpps:"+str(self.speed_qppsr[1])+";  Written qpps:"+str(self.w_qppsr))
 				# convert from qpps to velocity
 				self.speed_right = (self.speed_qppsr[1])/(self.ENCODER_CPR*self.GEAR_RATIO)
-				print("Right wheel rps: " + str(self.speed_right))
+				#print("Right wheel rps: " + str(self.speed_right))
 			else:
 				rospy.logwarn_throttle(1, "Invalid right speed received from roboclaw")
 				# usually happens when the speed is not written properly. so, write the speed again
@@ -157,7 +164,7 @@ class MotorDriver(object):
 				#self.write_speed("right", int(self.w_qppsr)) 
 			self.speed_vx = (self.speed_right + self.speed_left)*(2*self.PI)*(self.RADIUS/2)
 			self.speed_vz = (self.speed_right - self.speed_left)*(2*self.PI)*(self.RADIUS/(2*self.WHEEL_BASE))
-			print("Robot speed - x: " + str(self.speed_vx) + " z: " + str(self.speed_vz))
+			#print("Robot speed - x: " + str(self.speed_vx) + " z: " + str(self.speed_vz))
 		else:
 			rospy.logwarn_throttle(1, "Motor driver is not connected. Unable to retrieve data.")
 
@@ -168,7 +175,20 @@ if __name__ == "__main__":
 
 	mdriver = MotorDriver()
 	while not rospy.is_shutdown():
-		mdriver.publish_wheel_odom()
+		#mdriver.publish_wheel_odom()
 		#mdriver.read_speed()
 		rate.sleep()
+	#stop the robot if ros dies
+	mdriver.rc.SpeedM1(mdriver.address, 0)
+	mdriver.rc.SpeedM2(mdriver.address, 0)
+		
+	#try:
+	#	while not rospy.is_shutdown():
+	#		mdriver.publish_wheel_odom()
+	#		#mdriver.read_speed()
+	#		rate.sleep()
+	#except rospy.ROSInterruptException:
+	#	#stop the robot if ros dies
+	#	mdriver.rc.SpeedM1(mdriver.address, 0)
+	#	mdriver.rc.SpeedM2(mdriver.address, 0)
 

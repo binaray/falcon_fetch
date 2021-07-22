@@ -3,6 +3,7 @@
 #include "marvelmind_nav/hedge_imu_fusion.h"
 #include "marvelmind_nav/hedge_pos_ang.h"
 #include "sensor_msgs/Imu.h"
+#include "std_msgs/Bool.h"
 #include "std_srvs/Trigger.h"
 #include "std_msgs/Float64.h"
 #include "tf/transform_broadcaster.h"
@@ -13,6 +14,7 @@ namespace InitialOrientation{
 	ros::ServiceServer initial_orientation_srv_;
 	ros::Subscriber hedge_subscriber_;
 	ros::Subscriber imu_subscriber_;
+	ros::Publisher imu_status_publisher_;
 	ros::Publisher cmd_vel_publisher_;
 	ros::Publisher robot_yaw_publisher_;
 	std_msgs::Float64 yaw_msg_;
@@ -32,6 +34,7 @@ namespace InitialOrientation{
   double global_yaw_;
   ros::Time last_imu_time_;
   bool imu_disconnected_;
+  bool is_imu_open_ = false;
 	
 	bool findOrientation(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res){
 	//subscribe to imu and hedge. move robot at 0.10m/s for 1 s. find the angle relative to x axis 
@@ -50,9 +53,11 @@ namespace InitialOrientation{
 		cmd_vel_msg.linear.x = 0;
 		cmd_vel_publisher_.publish(cmd_vel_msg);
 		// make sure robot comes to a stop, process after 1s
-		ROS_INFO("Waiting for robot to come to a stop");
-		ros::Rate sleep_rate(1);
-		sleep_rate.sleep();
+		start_time_ = ros::Time::now();
+		while(ros::Time::now() - start_time_ < ros::Duration(1)){
+			ros::spinOnce();
+			ROS_INFO_THROTTLE(1,"Waiting for robot to come to a stop");
+		}
 		ROS_INFO("Final x,y: %f, %f", current_x_, current_y_);
 		basic_angle_ = abs(atan((current_y_ - initial_y_)/(current_x_ - initial_x_)));
 		if(current_x_>initial_x_){
@@ -76,17 +81,28 @@ namespace InitialOrientation{
 		if(is_orientation_ok_){
 			// if imu disconnects based on timeout from callback, recalulate the offset angle based on prev global yaw value. do not have to redo orientation fix.
 			// although if disconnected while turning, the angle would be very off
-			/*if(imu_disconnected_){
+			if(imu_disconnected_){
 				offset_angle_ = global_yaw_ - yaw_;
+				imu_disconnected_ = false;
 			}	
-			*/
+			
 			// need to take into account of the global(to beacon) and relative(to robot) orientation
-			//global_yaw_ = fmod((yaw_+ offset_angle_),2*M_PI);
+			global_yaw_ = fmod((yaw_+ offset_angle_),2*M_PI);
 			yaw_msg_.data = fmod((yaw_+ offset_angle_),2*M_PI); // keep angle within 0 to 2pi
 			if(yaw_msg_.data > M_PI) yaw_msg_.data -= 2*M_PI; // keep angle between -pi to pi
 			if(yaw_msg_.data < -M_PI) yaw_msg_.data += 2*M_PI; // keep angle between -pi to pi
 			robot_yaw_publisher_.publish(yaw_msg_);
 		}
+	}
+	
+	void publishImuStatus(){
+		if(is_imu_open_ && (ros::Time::now() - last_imu_time_ > ros::Duration(0.5))){
+			imu_disconnected_ = true;
+			std_msgs::Bool imu_status_msg;
+			imu_status_msg.data = imu_disconnected_;
+			ROS_WARN_THROTTLE(0.5, "Imu is disconnected. Robot yaw will be inaccurate.");
+			imu_status_publisher_.publish(imu_status_msg);
+		}		
 	}
 
 	void hedgeCallback(const marvelmind_nav::hedge_pos_ang msg){
@@ -95,14 +111,12 @@ namespace InitialOrientation{
 	}
 	
 	void imuCallback(const sensor_msgs::ImuConstPtr& msg){
+		is_imu_open_ = true;
 		//orientation_w_ = msg->orientation.w;
 		//orientation_z_ = msg->orientation.z;
   	tf::quaternionMsgToTF(msg->orientation, quat_);
   	tf::Matrix3x3(quat_).getRPY(roll_, pitch_, yaw_);
-  	/*if(ros::Time::now() - last_imu_time_ > ros::Duration(0.5)) imu_disconnected_ = true;
-  	else imu_disconnected_ = false;
   	last_imu_time_ = ros::Time::now();
-  	*/
 	}
 
 }
@@ -115,12 +129,14 @@ int main(int argc, char **argv){
 
 	InitialOrientation::hedge_subscriber_ = nh.subscribe<marvelmind_nav::hedge_pos_ang>("hedge_pos_ang", 10, InitialOrientation::hedgeCallback);
 	InitialOrientation::imu_subscriber_ = nh.subscribe<sensor_msgs::Imu>("bno055_imu/data", 10, InitialOrientation::imuCallback);
+	InitialOrientation::imu_status_publisher_ = nh.advertise<std_msgs::Bool>("imu_status", 10);
 	InitialOrientation::cmd_vel_publisher_ = nh.advertise<geometry_msgs::Twist>("cmd_vel", 10);
 	InitialOrientation::robot_yaw_publisher_ = nh.advertise<std_msgs::Float64>("robot_yaw", 10);
 	InitialOrientation::initial_orientation_srv_ = nh.advertiseService("find_orientation", InitialOrientation::findOrientation);
 
 	while(ros::ok()){
 		InitialOrientation::publishRobotYaw();
+		InitialOrientation::publishImuStatus();
 		ros::spinOnce();
 		loop_rate.sleep();
 	}
