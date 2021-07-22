@@ -51,6 +51,7 @@ class StateMachine{
 		float angleDifferenceToPoint(Position p);
 		void moveTowardsGoal();
 		bool getOrientationEstimate();
+		bool readPointsFromFile();
 		
 		//runtime variables
 		bool is_beacons_init_ = false;

@@ -532,6 +532,27 @@ bool StateMachine::readPointsFromFile(std_srvs::Empty::Request &req, std_srvs::E
 	return true;
 }
 
+bool StateMachine::readPointsFromFile(){
+	ROS_INFO("Reading waypoints from path: %s", file_path_.c_str());
+	move_goals_.clear();
+	std::ifstream myfile;
+	myfile.open(file_path_);
+	std::string line;
+	while(std::getline(myfile,line)){
+		Position p;
+		std::string token;
+		std::stringstream ss(line);
+		std::getline(ss,token,',');
+		p.x=std::stod(token);
+		std::getline(ss,token,',');
+		p.y=std::stod(token);
+		move_goals_.push_back(p);
+	}
+	myfile.close();
+	showRvizMoveGoals();
+	return true;
+}
+
 float StateMachine::angleDifferenceToPoint(Position p){
 	//ROS_INFO("POINT: %f,%f. ROBOT POSITION: %f,%f.",p.x,p.y,current_pos_.x,current_pos_.y);
 	p.x -= current_pos_.x;
@@ -564,7 +585,6 @@ void StateMachine::moveTowardsGoal(){
 	if (d > distance_threshold_){		
 		//check robot direction with goal
 		float angle = angleDifferenceToPoint(move_goals_[current_goal_index_]);
-		bool is_differential_movement;
 		
 		//rotate towards goal
 		if (angle > rotation_threshold_){
@@ -572,12 +592,14 @@ void StateMachine::moveTowardsGoal(){
 				cmd_vel_msg.angular.z = angle/rotation_falloff_ * (max_angular_speed_ - min_angular_speed_) + min_angular_speed_;
 			}
 			else cmd_vel_msg.angular.z = max_angular_speed_;
+			ROS_INFO("Turning left");
 		}
 		else if (angle < -rotation_threshold_){
 			if (angle > -rotation_falloff_){
 				cmd_vel_msg.angular.z = -angle/rotation_falloff_ * (max_angular_speed_ - min_angular_speed_) - min_angular_speed_;
 			}
 			else cmd_vel_msg.angular.z = -max_angular_speed_;
+			ROS_INFO("Turning right");
 		}
 		if (angle > -rotation_threshold_ && angle < rotation_threshold_){
 			cmd_vel_msg.linear.x = (d>inflation_radius_) ? max_linear_speed_: d/inflation_radius_ * (max_linear_speed_ - min_linear_speed_) + min_linear_speed_;
@@ -606,7 +628,7 @@ void StateMachine::beaconsPosCallback(const marvelmind_nav::beacon_pos_a msg){
 		//beacons_pos_.insert (std::pair<int,Position>(msg.address,data));
 		beacons_pos_[msg.address] = data;
 		if (beacons_pos_.size()>=stationary_beacon_count_){
-			generateMoveGoals();
+			//generateMoveGoals();
 			is_beacons_init_ = true;
 		}
 	}

@@ -25,6 +25,7 @@ void StartState::stateUpdate() {
 void StartState::onInput(uint8_t input){}
 
 RunState::RunState(StateMachine *machine) : State(machine){
+	machine->readPointsFromFile();
 	ROS_INFO("Running navigation for %d points", machine->move_goals_.size());
 	machine->current_goal_index_ = -1;	
 	if(!machine->publishNextMoveGoal()) {
