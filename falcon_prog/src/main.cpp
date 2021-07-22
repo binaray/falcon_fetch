@@ -63,6 +63,10 @@ bool StateMachine::init(){
 	pn.param("stationary_threshold", stationary_threshold_, float(0.1));
 	pn.param("max_linear_speed", max_linear_speed_, float(0.15));
 	pn.param("max_angular_speed", max_angular_speed_, float(1.0));
+	pn.param("min_linear_speed", min_linear_speed_, float(0.05));
+	pn.param("min_angular_speed", min_angular_speed_, float(0.2));
+	pn.param("inflation_radius", inflation_radius_, float(0.1));
+	pn.param("rotation_falloff", rotation_falloff_, float(M_PI/2));
 	pn.param("rotation_threshold", rotation_threshold_, float(0.05));
 	pn.param("distance_threshold", distance_threshold_, float(0.02));
 	pn.param("differential_movement_threshold", differential_movement_threshold_, float(0.1));
@@ -72,7 +76,7 @@ bool StateMachine::init(){
 	immobile_timeout_ = ros::Duration(5);
 	marker_frame_ = "my_frame";
 	
-	stationary_pos_ = 0;
+	stationary_pos_ = 0; //pointer init
 	
 	beacons_pos_subscriber_ = n_.subscribe<marvelmind_nav::beacon_pos_a>("beacons_pos_a", 10, &StateMachine::beaconsPosCallback, this);
 	current_pos_subscriber_ = n_.subscribe<marvelmind_nav::hedge_pos_ang>("hedge_pos_ang", 10, &StateMachine::currentPosCallback, this);
@@ -553,11 +557,6 @@ float StateMachine::angleDifferenceToPoint(Position p){
 
 void StateMachine::moveTowardsGoal(){
 	geometry_msgs::Twist cmd_vel_msg;	
-	float inflation_radius_ = 0.05;
-	float rotation_falloff_ = 0.4;
-	float min_linear_speed_ = 0.05;
-	float min_angular_speed_ = 0.2;
-	
 	float d = distanceBetweenVectors(current_pos_, move_goals_[current_goal_index_]);
 	
 	if (d > distance_threshold_){		
@@ -579,7 +578,7 @@ void StateMachine::moveTowardsGoal(){
 			else cmd_vel_msg.angular.z = -max_angular_speed_;
 		}
 		if (angle > -rotation_threshold_ && angle < rotation_threshold_){
-				cmd_vel_msg.linear.x = (d>inflation_radius_) ? max_linear_speed_: d/inflation_radius_ * (max_linear_speed_ - min_linear_speed_) + min_linear_speed_;
+			cmd_vel_msg.linear.x = (d>inflation_radius_) ? max_linear_speed_: d/inflation_radius_ * (max_linear_speed_ - min_linear_speed_) + min_linear_speed_;
 		}
 	}
 	else{

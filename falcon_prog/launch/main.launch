@@ -8,7 +8,11 @@
     <param name="x_step" value="0.2"/>
     <param name="bound_padding" value="0.1"/>
     <param name="max_linear_speed" value="0.1"/>
-    <param name="max_angular_speed" value="0.4"/>
+    <param name="max_angular_speed" value="0.5"/>
+    <param name="min_linear_speed" value="0.05"/>
+    <param name="min_angular_speed" value="0.1"/>
+    <param name="inflation_radius" value="0.1"/>
+    <param name="rotation_falloff" value="1.571"/>
     <param name="stationary_threshold" value="0.02"/>
     <param name="rotation_threshold" value="0.1"/>
     <param name="distance_threshold" value="0.05"/>

@@ -77,6 +77,10 @@ class StateMachine{
 		float bound_padding_;
 		float max_linear_speed_;
 		float max_angular_speed_;
+		float min_linear_speed_;
+		float min_angular_speed_;		
+		float inflation_radius_;
+		float rotation_falloff_;
 		float stationary_threshold_;
 		float rotation_threshold_;
 		float distance_threshold_;
