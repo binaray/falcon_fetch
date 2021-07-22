@@ -15,19 +15,22 @@ StartState::StartState(StateMachine *machine) : State(machine){ ROS_INFO("Falcon
 void StartState::stateUpdate() { 
 	ROS_INFO_THROTTLE(5, "Waiting for beacons to startup.. Left: %d", machine->stationary_beacon_count_-machine->beacons_pos_.size());
 	if (machine->is_beacons_init_){
-		if (machine->getOrientationEstimate()) setState(new RunState(machine));
+		if (machine->getOrientationEstimate()){ 
+			ros::param::set("/is_recording", true);
+			setState(new RunState(machine));
+		}
 		else ROS_ERROR_THROTTLE(5,"Unable to get orientation");
 	}
 }
 void StartState::onInput(uint8_t input){}
 
 RunState::RunState(StateMachine *machine) : State(machine){
+	machine->readPointsFromFile();
 	ROS_INFO("Running navigation for %d points", machine->move_goals_.size());
 	machine->current_goal_index_ = -1;	
 	if(!machine->publishNextMoveGoal()) {
 		ROS_ERROR("Something went wrong: No points found..");
 	}
-	machine->goal_reached_ = false;
 }
 void RunState::stateUpdate(){
 	if (machine->goal_reached_){

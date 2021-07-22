@@ -5,6 +5,7 @@ FROM ros:noetic-ros-core-focal
 # install bootstrap tools
 RUN apt-get update && apt-get install --no-install-recommends -y \
 	ros-noetic-perception=1.5.0-1* \
+	usb_cam \
     build-essential \
     python3-rosdep \
     python3-rosinstall \

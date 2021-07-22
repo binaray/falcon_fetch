@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   sensor_msgs
   camera_calibration_parsers cv_bridge image_transport 
+  marvelmind_nav
 )
 
 ################################################
