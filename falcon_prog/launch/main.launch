@@ -20,7 +20,7 @@
 		<param name="waypoint_filepath" value="$(find falcon_prog)/waypoints/test_0.csv"/>
 	</node>
 	<node name="marvelmind_nav" pkg="marvelmind_nav" type="hedge_rcv_bin" args="$(arg beacon_port) $(arg baud_rate)"/>
-	<node name="falcon_imu" pkg="falcon_drivers" type="imu.py" respawn="true"/>
+	<!--node name="falcon_imu" pkg="falcon_drivers" type="imu.py" respawn="true"/-->
 	<!--node name="falcon_roboclaw" pkg="falcon_drivers" type="motor_driver_speed.py" respawn="true"/-->
 	<!--node name="falcon_orientation" pkg="falcon_drivers" type="falcon_drivers_orientation_node" respawn="true"/-->
 	<node type="rviz" name="rviz" pkg="rviz" args="-d $(find falcon_prog)/rviz/falcon.rviz"/>
