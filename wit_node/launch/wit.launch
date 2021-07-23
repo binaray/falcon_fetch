@@ -1,0 +1,7 @@
+<launch>
+  <arg name="port"                  default = "/dev/dragon_wit_imu" />
+  <node pkg="nodelet" type="nodelet" name="wit_nodelet_manager" args="manager" output="screen"/>
+  <node pkg="nodelet" type="nodelet" name="wit" args="load wit_node/WitNodelet wit_nodelet_manager" output="screen">
+    <param name="port" value="$(arg port)" />
+  </node>
+</launch>
