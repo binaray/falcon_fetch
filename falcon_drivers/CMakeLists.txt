@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_srvs
   marvelmind_nav
   tf
+  wit_node
 )
 
 ## System dependencies are found with CMake's conventions
@@ -171,6 +172,12 @@ target_link_libraries(${PROJECT_NAME}_orientation_node_uwb
 add_executable(${PROJECT_NAME}_rpy_check src/rpy_check.cpp)
 add_dependencies(${PROJECT_NAME}_rpy_check ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME}_rpy_check
+  ${catkin_LIBRARIES}
+)
+
+add_executable(${PROJECT_NAME}_orientation_node_wit src/initial_orientation_wit.cpp)
+add_dependencies(${PROJECT_NAME}_orientation_node_wit ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(${PROJECT_NAME}_orientation_node_wit
   ${catkin_LIBRARIES}
 )
 
