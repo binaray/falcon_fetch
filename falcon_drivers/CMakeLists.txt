@@ -162,6 +162,12 @@ target_link_libraries(${PROJECT_NAME}_orientation_node
   ${catkin_LIBRARIES}
 )
 
+add_executable(${PROJECT_NAME}_orientation_node_uwb src/initial_orientation_uwb.cpp)
+add_dependencies(${PROJECT_NAME}_orientation_node_uwb ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(${PROJECT_NAME}_orientation_node_uwb
+  ${catkin_LIBRARIES}
+)
+
 #############
 ## Install ##
 #############

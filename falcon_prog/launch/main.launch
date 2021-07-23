@@ -2,26 +2,26 @@
 <launch>
 	<arg name="beacon_port" default="/dev/falcon_beacon"/>
 	<arg name="baud_rate" default="115200"/>
-
+	
 	<node name="falcon_prog" pkg="falcon_prog" type="falcon_prog_node" output="screen">
 		<param name="stationary_beacon_count" value="4"/>
-    <param name="x_step" value="0.2"/>
-    <param name="bound_padding" value="0.1"/>
-    <param name="max_linear_speed" value="0.1"/>
-    <param name="max_angular_speed" value="0.5"/>
-    <param name="min_linear_speed" value="0.05"/>
-    <param name="min_angular_speed" value="0.1"/>
-    <param name="inflation_radius" value="0.1"/>
-    <param name="rotation_falloff" value="1.571"/>
-    <param name="stationary_threshold" value="0.02"/>
-    <param name="rotation_threshold" value="0.1"/>
-    <param name="distance_threshold" value="0.05"/>
-    <param name="differential_movement_threshold" value="0.1"/>
-    <param name="waypoint_filepath" value="/home/ubuntu/waypoints.csv"/>
-  </node>
+		<param name="x_step" value="0.2"/>
+		<param name="bound_padding" value="0.1"/>
+		<param name="max_linear_speed" value="0.1"/>
+		<param name="max_angular_speed" value="0.5"/>
+		<param name="min_linear_speed" value="0.05"/>
+		<param name="min_angular_speed" value="0.1"/>
+		<param name="inflation_radius" value="0.1"/>
+		<param name="rotation_falloff" value="1.571"/>
+		<param name="stationary_threshold" value="0.02"/>
+		<param name="rotation_threshold" value="0.1"/>
+		<param name="distance_threshold" value="0.05"/>
+		<param name="differential_movement_threshold" value="0.1"/>
+		<param name="waypoint_filepath" value="$(find falcon_prog)/waypoints/test_0.csv"/>
+	</node>
 	<node name="marvelmind_nav" pkg="marvelmind_nav" type="hedge_rcv_bin" args="$(arg beacon_port) $(arg baud_rate)"/>
-	<node name="falcon_imu" pkg="falcon_drivers" type="imu.py" respawn="true"/>
+	<!--node name="falcon_imu" pkg="falcon_drivers" type="imu.py" respawn="true"/-->
 	<!--node name="falcon_roboclaw" pkg="falcon_drivers" type="motor_driver_speed.py" respawn="true"/-->
-	<node name="falcon_orientation" pkg="falcon_drivers" type="falcon_drivers_orientation_node" respawn="true"/>
+	<!--node name="falcon_orientation" pkg="falcon_drivers" type="falcon_drivers_orientation_node" respawn="true"/-->
 	<node type="rviz" name="rviz" pkg="rviz" args="-d $(find falcon_prog)/rviz/falcon.rviz"/>
 </launch>
