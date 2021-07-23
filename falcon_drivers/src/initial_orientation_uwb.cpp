@@ -43,7 +43,7 @@ namespace InitialOrientation{
 		initial_y_ = current_y_;
 		ROS_INFO("Initial x,y: %f, %f", initial_x_, initial_y_);
 		geometry_msgs::Twist cmd_vel_msg;
-		cmd_vel_msg.linear.x = 0.1;
+		cmd_vel_msg.linear.x = 0.05;
 		cmd_vel_publisher_.publish(cmd_vel_msg);
 		start_time_ = ros::Time::now();
 		while(ros::Time::now() - start_time_ < ros::Duration(1)){
