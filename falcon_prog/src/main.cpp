@@ -596,7 +596,7 @@ void StateMachine::moveTowardsGoal(){
 		}
 		else if (angle < -rotation_threshold_){
 			if (angle > -rotation_falloff_){
-				cmd_vel_msg.angular.z = -angle/rotation_falloff_ * (max_angular_speed_ - min_angular_speed_) - min_angular_speed_;
+				cmd_vel_msg.angular.z = angle/rotation_falloff_ * (max_angular_speed_ - min_angular_speed_) - min_angular_speed_;
 			}
 			else cmd_vel_msg.angular.z = -max_angular_speed_;
 			ROS_INFO("Turning right");
