@@ -4,7 +4,7 @@ import cv2 as cv
 import csv
 import time
 
-cap = cv.VideoCapture(4)
+cap = cv.VideoCapture(0)
 width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))
 # Define the codec and create VideoWriter object
