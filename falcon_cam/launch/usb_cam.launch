@@ -1,12 +1,12 @@
 <launch>
   <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
     <param name="video_device" value="/dev/video0" />
-    <param name="image_width" value="640" />
-    <param name="image_height" value="480" />
+    <param name="image_width" value="1920" />
+    <param name="image_height" value="1080" />
     <param name="pixel_format" value="yuyv" />
     <param name="camera_frame_id" value="usb_cam" />
     <param name="io_method" value="mmap"/>
-		<param name="framerate" value="10"/>
+		<param name="framerate" value="5"/>
     <param name="camera_info_url" value="package://falcon_cam/config/camera.yaml"/>
   </node>
 
@@ -15,7 +15,7 @@
     <param name="filename" value="camera%04d.avi" />
     <param name="base_file_path" value="/home/ubuntu/Videos/falcon" />
     <param name="capture_interval" value="600" />
-    <param name="fps" value="10"/>
+    <param name="fps" value="5"/>
   </node>
 
   <node pkg="tf2_ros" type="static_transform_publisher" name="usb_cam_broadcaster" args="0 0 0 0 0 0 camera_link usb_cam_link" />

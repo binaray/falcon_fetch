@@ -601,7 +601,7 @@ void StateMachine::moveTowardsGoal(){
 			else cmd_vel_msg.angular.z = -max_angular_speed_;
 			ROS_INFO("Turning right");
 		}
-		if (angle > -rotation_threshold_ && angle < rotation_threshold_){
+		if (angle > -rotation_falloff_ && angle < rotation_falloff_){
 			cmd_vel_msg.linear.x = (d>inflation_radius_) ? max_linear_speed_: d/inflation_radius_ * (max_linear_speed_ - min_linear_speed_) + min_linear_speed_;
 		}
 		ROS_INFO("Moving to [%d] (%f,%f) linear: %f ang: %f",current_goal_index_,move_goals_[current_goal_index_].x,move_goals_[current_goal_index_].y,cmd_vel_msg.linear.x,cmd_vel_msg.angular.z);
