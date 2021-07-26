@@ -70,7 +70,9 @@ bool StateMachine::init(){
 	pn.param("rotation_threshold", rotation_threshold_, float(0.05));
 	pn.param("distance_threshold", distance_threshold_, float(0.02));
 	pn.param("differential_movement_threshold", differential_movement_threshold_, float(0.1));
-	pn.param("waypoint_filepath", file_path_, std::string("/waypoints.csv"));
+	pn.param("kI", k_p_, float(0.5));
+	pn.param("kP", k_i_, float(0.01));
+	pn.param("distance_threshold", distance_threshold_, float(0.02));
 	
 	last_updated_timeout_ = ros::Duration(5);
 	immobile_timeout_ = ros::Duration(5);
@@ -585,8 +587,15 @@ void StateMachine::moveTowardsGoal(){
 	if (d > distance_threshold_){		
 		//check robot direction with goal
 		float angle = angleDifferenceToPoint(move_goals_[current_goal_index_]);
+		int error = angle / M_PI * 360;
+		float now = ros::Time::now().toSec();
 		
-		//rotate towards goal
+		cmd_vel_msg.linear.x = max_linear_speed_;
+		cmd_vel_msg.angular.z = k_p_ * (float) error + k_i_ * error_sum_;
+		error_sum_ += error * (now - prev_time_);
+		prev_time_ = now;
+		
+		/*/rotate towards goal
 		if (angle > rotation_threshold_){
 			if (angle < rotation_falloff_){
 				cmd_vel_msg.angular.z = angle/rotation_falloff_ * (max_angular_speed_ - min_angular_speed_) + min_angular_speed_;
@@ -604,6 +613,7 @@ void StateMachine::moveTowardsGoal(){
 		if (angle > -rotation_falloff_ && angle < rotation_falloff_){
 			cmd_vel_msg.linear.x = (d>inflation_radius_) ? max_linear_speed_: d/inflation_radius_ * (max_linear_speed_ - min_linear_speed_) + min_linear_speed_;
 		}
+		//*/
 		ROS_INFO("Moving to [%d] (%f,%f) linear: %f ang: %f",current_goal_index_,move_goals_[current_goal_index_].x,move_goals_[current_goal_index_].y,cmd_vel_msg.linear.x,cmd_vel_msg.angular.z);
 		updateRvizMoveGoal(current_goal_index_, 1);
 	}

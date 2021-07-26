@@ -93,6 +93,10 @@ class StateMachine{
 	private:		
 		static State *current_state_;
 		std::string marker_frame_;
+		float k_p_, k_i_;
+		float prev_time_;
+		int error_sum_ = 0;
+		int prev_error_ = 0;
 		
 		ros::NodeHandle n_;
 		ros::Subscriber beacons_pos_subscriber_;
