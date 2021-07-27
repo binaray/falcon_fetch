@@ -587,6 +587,8 @@ void StateMachine::moveTowardsGoal(){
 	if (d > distance_threshold_){		
 		//check robot direction with goal
 		float angle = angleDifferenceToPoint(move_goals_[current_goal_index_]);
+		
+		/*/--PI control
 		int error = angle / M_PI * 360;
 		float now = ros::Time::now().toSec();
 		
@@ -594,8 +596,9 @@ void StateMachine::moveTowardsGoal(){
 		cmd_vel_msg.angular.z = k_p_ * (float) error + k_i_ * error_sum_;
 		error_sum_ += error * (now - prev_time_);
 		prev_time_ = now;
+		/*/
 		
-		/*/rotate towards goal
+		//rotate towards goal
 		if (angle > rotation_threshold_){
 			if (angle < rotation_falloff_){
 				cmd_vel_msg.angular.z = angle/rotation_falloff_ * (max_angular_speed_ - min_angular_speed_) + min_angular_speed_;
