@@ -48,8 +48,10 @@ class MotorDriver(object):
 	def cmd_vel_cb(self, msg):
 		self.v_x = msg.linear.x
 		self.v_z = msg.angular.z 
-		self.w_left = 0.5*(self.v_x - (self.v_z * self.WHEEL_BASE))/(self.RADIUS*math.pi)*60  # wheel left in rpm
-		self.w_right = 0.5*(self.v_x + (self.v_z * self.WHEEL_BASE))/(self.RADIUS*math.pi)*60 # wheel right in rpm
+		self.w_left = self.v_x - self.v_z
+		self.w_right = self.v_x + self.v_z
+		#self.w_left = 0.5*(self.v_x - (self.v_z * self.WHEEL_BASE))/(self.RADIUS*math.pi)*60  # wheel left in rpm
+		#self.w_right = 0.5*(self.v_x + (self.v_z * self.WHEEL_BASE))/(self.RADIUS*math.pi)*60 # wheel right in rpm
 		rospy.loginfo("Writing speeds(rpm) to motors - Left: %2f, Right: %2f", self.w_left, self.w_right)
 		if(self.w_left!=self.prev_w_left):
 			self.write_speed("left", self.w_left)
@@ -61,6 +63,8 @@ class MotorDriver(object):
 	def write_speed(self, wheel, speed):
 		if speed > self.MAX_RPM:
 			speed = self.MAX_RPM # keep max at 30
+		if speed < -self.MAX_RPM:
+			speed =  -self.MAX_RPM # limit negative speed too
 		pwm_speed = int((self.MAX_RPM-abs(speed))/self.MAX_RPM*100) # inverted duty cycle logic for some reason
 		if wheel=="left":
 			if speed >= 0:

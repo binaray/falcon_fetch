@@ -70,14 +70,16 @@ bool StateMachine::init(){
 	pn.param("rotation_threshold", rotation_threshold_, float(0.05));
 	pn.param("distance_threshold", distance_threshold_, float(0.02));
 	pn.param("differential_movement_threshold", differential_movement_threshold_, float(0.1));
-	pn.param("kI", k_p_, float(0.5));
-	pn.param("kP", k_i_, float(0.01));
+	pn.param("waypoint_filepath", file_path_, std::string("/waypoints.csv"));
+	pn.param("kI", k_i_, float(0.5));
+	pn.param("kP", k_p_, float(0.01));
 	pn.param("distance_threshold", distance_threshold_, float(0.02));
 	
 	last_updated_timeout_ = ros::Duration(5);
 	immobile_timeout_ = ros::Duration(5);
 	marker_frame_ = "my_frame";
-	
+	//prev_time_ = ros::Time::now();
+
 	stationary_pos_ = 0; //pointer init
 	
 	beacons_pos_subscriber_ = n_.subscribe<marvelmind_nav::beacon_pos_a>("beacons_pos_a", 10, &StateMachine::beaconsPosCallback, this);
@@ -587,14 +589,15 @@ void StateMachine::moveTowardsGoal(){
 	if (d > distance_threshold_){		
 		//check robot direction with goal
 		float angle = angleDifferenceToPoint(move_goals_[current_goal_index_]);
-		int error = angle / M_PI * 360;
-		float now = ros::Time::now().toSec();
+		//int error = angle / M_PI * 360;
+		//float now = ros::Time::now().toSec();
 		
-		cmd_vel_msg.linear.x = max_linear_speed_;
-		cmd_vel_msg.angular.z = k_p_ * (float) error + k_i_ * error_sum_;
-		error_sum_ += error * (now - prev_time_);
-		prev_time_ = now;
-		
+		cmd_vel_msg.linear.x = 9;
+		cmd_vel_msg.angular.z = k_p_ * angle; + k_i_ * error_sum_;
+		//error_sum_ += angle;
+		//prev_time_ = now;
+		ROS_INFO("w=%f error=%f kp=%f error_sum=%f",cmd_vel_msg.angular.z, angle, error_sum_);
+		error_sum_ += angle;
 		/*/rotate towards goal
 		if (angle > rotation_threshold_){
 			if (angle < rotation_falloff_){

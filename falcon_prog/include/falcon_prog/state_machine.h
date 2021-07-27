@@ -95,7 +95,7 @@ class StateMachine{
 		std::string marker_frame_;
 		float k_p_, k_i_;
 		float prev_time_;
-		int error_sum_ = 0;
+		float error_sum_ = 0;
 		int prev_error_ = 0;
 		
 		ros::NodeHandle n_;

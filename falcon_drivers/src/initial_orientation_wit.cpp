@@ -43,10 +43,10 @@ namespace InitialOrientation{
 		initial_y_ = current_y_;
 		ROS_INFO("Initial x,y: %f, %f", initial_x_, initial_y_);
 		geometry_msgs::Twist cmd_vel_msg;
-		cmd_vel_msg.linear.x = 0.05;
+		cmd_vel_msg.linear.x = 10;
 		cmd_vel_publisher_.publish(cmd_vel_msg);
 		start_time_ = ros::Time::now();
-		while(ros::Time::now() - start_time_ < ros::Duration(1)){
+		while(ros::Time::now() - start_time_ < ros::Duration(2)){
 			ros::spinOnce();
 			ROS_INFO_THROTTLE(1,"Waiting for robot to initialise with orientation");
 		}
