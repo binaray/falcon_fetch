@@ -14,6 +14,7 @@ namespace InitialOrientation{
 	ros::ServiceServer initial_orientation_srv_;
 	ros::Subscriber hedge_subscriber_;
 	ros::Subscriber imu_subscriber_;
+	ros::Subscriber cmd_vel_subscriber_;
 	ros::Publisher imu_status_publisher_;
 	ros::Publisher cmd_vel_publisher_;
 	ros::Publisher robot_yaw_publisher_;
@@ -35,7 +36,11 @@ namespace InitialOrientation{
   ros::Time last_imu_time_;
   bool imu_disconnected_;
   bool is_imu_open_ = false;
-	
+	ros::Time prev_cmd_stamp_;
+	geometry_msgs::Twist prev_cmd_;
+	float prev_x_pos_, prev_y_pos_;
+	bool is_moving_straight_=false;
+
 	bool findOrientation(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res){
 	//subscribe to imu and hedge. move robot at 0.10m/s for 1 s. find the angle relative to x axis 
 		ROS_INFO("Called find orientation srv. Initializing...");
@@ -46,7 +51,7 @@ namespace InitialOrientation{
 		cmd_vel_msg.linear.x = 0.05;
 		cmd_vel_publisher_.publish(cmd_vel_msg);
 		start_time_ = ros::Time::now();
-		while(ros::Time::now() - start_time_ < ros::Duration(1)){
+		while(ros::Time::now() - start_time_ < ros::Duration(2)){
 			ros::spinOnce();
 			ROS_INFO_THROTTLE(1,"Waiting for robot to initialise with orientation");
 		}
@@ -84,7 +89,7 @@ namespace InitialOrientation{
 			if(imu_disconnected_){
 				offset_angle_ = global_yaw_ - yaw_;
 				imu_disconnected_ = false;
-			}	
+			}
 			
 			// need to take into account of the global(to beacon) and relative(to robot) orientation
 			global_yaw_ = fmod((yaw_+ offset_angle_),2*M_PI);
@@ -96,13 +101,13 @@ namespace InitialOrientation{
 	}
 	
 	void publishImuStatus(){
-		if(is_imu_open_ && (ros::Time::now() - last_imu_time_ > ros::Duration(0.5))){
+		if(is_imu_open_ && (ros::Time::now() - last_imu_time_ > ros::Duration(2))){
 			imu_disconnected_ = true;
 			std_msgs::Bool imu_status_msg;
 			imu_status_msg.data = imu_disconnected_;
 			ROS_WARN_THROTTLE(0.5, "Imu is disconnected. Robot yaw will be inaccurate.");
 			imu_status_publisher_.publish(imu_status_msg);
-		}		
+		}
 	}
 
 	void hedgeCallback(const marvelmind_nav::hedge_pos_ang msg){
@@ -116,6 +121,36 @@ namespace InitialOrientation{
   	last_imu_time_ = ros::Time::now();
 	}
 
+	void cmdVelCallback(const geometry_msgs::Twist msg){
+		if(!is_orientation_ok_) return;
+		if (msg.linear.x==0.03 && msg.angular.z==0 ){
+			if (!is_moving_straight_){
+				is_moving_straight_ = true; 
+				prev_cmd_stamp_ = ros::Time::now();
+				initial_x_ = current_x_;
+				initial_y_ = current_y_;
+			}
+			else if (ros::Time::now() - prev_cmd_stamp_ > ros::Duration(3)){
+				basic_angle_ = abs(atan((current_y_ - initial_y_)/(current_x_ - initial_x_)));
+                		if(current_x_>initial_x_){
+                        		if(current_y_>initial_y_) final_angle_ = basic_angle_;
+                        		else final_angle_ = -basic_angle_;
+                		}
+                		else{
+                        		if(current_y_>initial_y_) final_angle_ = M_PI-basic_angle_;
+                        		else final_angle_ = -M_PI+basic_angle_;
+                		}
+				ROS_INFO("Recalibrating yaw");
+				ROS_INFO("Directional angle wrt x-axis: %5f", final_angle_);
+				offset_angle_ = final_angle_ - yaw_;
+				is_moving_straight_ = false;
+			}
+		}
+		else{
+			is_moving_straight_ = false;
+		}
+	}
+
 }
 
 int main(int argc, char **argv){
@@ -123,7 +158,7 @@ int main(int argc, char **argv){
 	ros::NodeHandle nh;
 	ros::Rate loop_rate(10);
 	ROS_INFO("Initializing falcon initial orientation node!");
-
+	InitialOrientation::cmd_vel_subscriber_ = nh.subscribe<geometry_msgs::Twist>("cmd_vel",100,InitialOrientation::cmdVelCallback);
 	InitialOrientation::hedge_subscriber_ = nh.subscribe<marvelmind_nav::hedge_pos_ang>("hedge_pos_ang", 10, InitialOrientation::hedgeCallback);
 	InitialOrientation::imu_subscriber_ = nh.subscribe<wit_node::ImuGpsRaw>("wit/raw_data", 10, InitialOrientation::imuCallback);
 	InitialOrientation::imu_status_publisher_ = nh.advertise<std_msgs::Bool>("imu_status", 10);

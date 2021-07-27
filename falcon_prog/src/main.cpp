@@ -69,6 +69,7 @@ bool StateMachine::init(){
 	pn.param("rotation_falloff", rotation_falloff_, float(M_PI/2));
 	pn.param("rotation_threshold", rotation_threshold_, float(0.05));
 	pn.param("distance_threshold", distance_threshold_, float(0.02));
+	pn.param("waypoint_filepath",file_path_,std::string("/waypoint.csv"));
 	pn.param("differential_movement_threshold", differential_movement_threshold_, float(0.1));
 	pn.param("kI", k_p_, float(0.5));
 	pn.param("kP", k_i_, float(0.01));
@@ -613,7 +614,7 @@ void StateMachine::moveTowardsGoal(){
 			else cmd_vel_msg.angular.z = -max_angular_speed_;
 			ROS_INFO("Turning right");
 		}
-		if (angle > -rotation_falloff_ && angle < rotation_falloff_){
+		if (angle > -rotation_threshold_ && angle < rotation_threshold_){
 			cmd_vel_msg.linear.x = (d>inflation_radius_) ? max_linear_speed_: d/inflation_radius_ * (max_linear_speed_ - min_linear_speed_) + min_linear_speed_;
 		}
 		//*/

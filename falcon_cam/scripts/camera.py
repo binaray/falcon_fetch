@@ -76,8 +76,9 @@ if __name__ == "__main__":
 	rospy.loginfo("Initiating falcon cam node")
 	rate = rospy.Rate(10)
 
-	video = FalconVideo()
 	rospy.set_param("/is_recording", False)
+	video = FalconVideo()
+
 	while not rospy.is_shutdown():
 		rate.sleep()
 		video.is_recording = rospy.get_param("/is_recording")

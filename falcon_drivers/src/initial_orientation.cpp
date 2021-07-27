@@ -128,7 +128,7 @@ int main(int argc, char **argv){
 	ROS_INFO("Initializing falcon initial orientation node!");
 
 	InitialOrientation::hedge_subscriber_ = nh.subscribe<marvelmind_nav::hedge_pos_ang>("hedge_pos_ang", 10, InitialOrientation::hedgeCallback);
-	InitialOrientation::imu_subscriber_ = nh.subscribe<sensor_msgs::Imu>("bno055_imu/data", 10, InitialOrientation::imuCallback);
+	InitialOrientation::imu_subscriber_ = nh.subscribe<sensor_msgs::Imu>("imu", 10, InitialOrientation::imuCallback);
 	InitialOrientation::imu_status_publisher_ = nh.advertise<std_msgs::Bool>("imu_status", 10);
 	InitialOrientation::cmd_vel_publisher_ = nh.advertise<geometry_msgs::Twist>("cmd_vel", 10);
 	InitialOrientation::robot_yaw_publisher_ = nh.advertise<std_msgs::Float64>("robot_yaw", 10);

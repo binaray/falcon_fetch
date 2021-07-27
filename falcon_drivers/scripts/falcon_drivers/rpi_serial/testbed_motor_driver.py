@@ -61,6 +61,8 @@ class MotorDriver(object):
 	def write_speed(self, wheel, speed):
 		if speed > self.MAX_RPM:
 			speed = self.MAX_RPM # keep max at 30
+		if speed < -self.MAX_RPM:
+			speed = -self.MAX_RPM
 		pwm_speed = int((self.MAX_RPM-abs(speed))/self.MAX_RPM*100) # inverted duty cycle logic for some reason
 		if wheel=="left":
 			if speed >= 0:
