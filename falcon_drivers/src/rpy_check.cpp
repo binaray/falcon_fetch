@@ -41,7 +41,11 @@ void imuRawCb(const marvelmind_nav::hedge_imu_fusion msg){
 int main(int argc, char** argv) {
   ros::init(argc, argv, "rpy_check");
   ros::NodeHandle n;
-	ros::Subscriber imu_sub = n.subscribe("imu", 10, &imuCb);
+  std::string imu_topic;
+  if(argc>1) imu_topic = argv[1];
+  else imu_topic = "imu";
+  ROS_INFO("RPY CHECK SUBSCRIBING TO %s", imu_topic.c_str());
+	ros::Subscriber imu_sub = n.subscribe(imu_topic, 10, &imuCb);
   ros::Subscriber imu_raw_sub = n.subscribe("hedge_imu_fusion", 10, &imuRawCb);
   quat_pub = n.advertise<sensor_msgs::Imu>("check_quat", 1000);
   ros::spin();

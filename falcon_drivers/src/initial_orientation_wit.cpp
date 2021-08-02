@@ -130,7 +130,7 @@ namespace InitialOrientation{
 				initial_x_ = current_x_;
 				initial_y_ = current_y_;
 			}
-			else if (ros::Time::now() - prev_cmd_stamp_ > ros::Duration(3)){
+			else if (ros::Time::now() - prev_cmd_stamp_ > ros::Duration(1.5)){
 				basic_angle_ = abs(atan((current_y_ - initial_y_)/(current_x_ - initial_x_)));
                 		if(current_x_>initial_x_){
                         		if(current_y_>initial_y_) final_angle_ = basic_angle_;
@@ -140,8 +140,8 @@ namespace InitialOrientation{
                         		if(current_y_>initial_y_) final_angle_ = M_PI-basic_angle_;
                         		else final_angle_ = -M_PI+basic_angle_;
                 		}
-				ROS_INFO("Recalibrating yaw");
-				ROS_INFO("Directional angle wrt x-axis: %5f", final_angle_);
+				ROS_WARN("Recalibrating yaw");
+				ROS_WARN("Directional angle wrt x-axis: %5f", final_angle_);
 				offset_angle_ = final_angle_ - yaw_;
 				is_moving_straight_ = false;
 			}
