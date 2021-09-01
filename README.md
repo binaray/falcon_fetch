@@ -20,3 +20,44 @@ To verify the connection, use ``` qv4l2 ``` to check if the camera is connected 
 ### Using Witmotion IMU:
 Additional ECL library is required, can be installed using ``` sudo apt-get install ros-noetic-ecl-core ```
 (Need to remove from falcon_drivers CMakeList.txt and package.xml and src/initial_orientation_wit.cpp if want to purge from workspace)
+
+## To Run:
+Roslaunch falcon_prog main.launch. This launches the following nodes. 
+- falcon_prog- main program handling the robot states 
+- marvelmind_nav- marvelmind beacon interface
+- falcon_orientation- orientation callibration service node
+- $(additional nodes for imu or camera)
+
+```
+# FALCON PROG PARAMS:
+- stationary_beacon_count 
+Number of stationary beacons the program will wait for response before executing the program
+
+- x_step, bound_padding
+Unused test params for dynamic waypoint generation based on beacon location
+
+- max_linear_speed, max_angular_speed, min_linear_speed, min_angular_speed
+Min and max speed for angular and linear movement of the robot. 
+*Note control function of the robot does not handle both together accurately yet
+
+- inflation_radius
+Distance of robot to a point before linear speed of the robot decreases
+
+- rotation_falloff
+Rotation range of robot towards a point before robot angular speed decreases
+
+- kP, kI
+Unused params for test PID control
+
+- stationary_threshold
+Min distance jitter used to determine if the robot is stationary
+
+- rotation_threshold
+Rotation range of robot to move goal robot must adhere to before it can consider linear movement
+
+- distance_threshold
+Max distance of robot to move goal to determine goal reached
+
+- waypoint_filepath
+Waypoint file to load waypoints
+```

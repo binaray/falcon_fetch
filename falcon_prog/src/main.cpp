@@ -4,6 +4,9 @@
 
 State *StateMachine::current_state_ = 0;
 
+//-------------------------------------------------------------
+// Helper functions to handle vector and quaternion operations
+//-------------------------------------------------------------
 float quaternionToRadian(Quaternion q){
 	float siny_cosp = 2 * (q.w * q.z);
     float cosy_cosp = 1 - 2 * (q.z * q.z);
@@ -46,6 +49,9 @@ Position addVectors(Position a, Position b){
 	return a;
 }
 
+//-------------------------------------------------------------
+// Class definitions
+//-------------------------------------------------------------
 StateMachine::StateMachine(){
   bool init_result = init();
   ROS_ASSERT(init_result);
@@ -70,17 +76,15 @@ bool StateMachine::init(){
 	pn.param("rotation_threshold", rotation_threshold_, float(0.05));
 	pn.param("distance_threshold", distance_threshold_, float(0.02));
 	pn.param("waypoint_filepath",file_path_,std::string("/waypoint.csv"));
-	pn.param("differential_movement_threshold", differential_movement_threshold_, float(0.1));
 	pn.param("kI", k_p_, float(0.5));
 	pn.param("kP", k_i_, float(0.01));
-	pn.param("distance_threshold", distance_threshold_, float(0.02));
-	
+
 	last_updated_timeout_ = ros::Duration(5);
 	immobile_timeout_ = ros::Duration(5);
 	marker_frame_ = "my_frame";
-	
+
 	stationary_pos_ = 0; //pointer init
-	
+
 	beacons_pos_subscriber_ = n_.subscribe<marvelmind_nav::beacon_pos_a>("beacons_pos_a", 10, &StateMachine::beaconsPosCallback, this);
 	current_pos_subscriber_ = n_.subscribe<marvelmind_nav::hedge_pos_ang>("hedge_pos_ang", 10, &StateMachine::currentPosCallback, this);
 	current_yaw_subscriber_ = n_.subscribe<std_msgs::Float64>("robot_yaw", 10, &StateMachine::currentYawCallback, this);
@@ -98,22 +102,20 @@ void StateMachine::update(){
 	current_state_->stateUpdate();
 }
 
+// displays position of beacons and hedge on rviz depending on is_hedge flag
 void StateMachine::showRvizPos(Position p, int address, bool is_hedge){
 	if (rviz_marker_publisher_.getNumSubscribers() < 1) return;
-
 	visualization_msgs::Marker marker;
 	// Set the frame ID and timestamp.  See the TF tutorials for information on these.
 	marker.header.frame_id = marker_frame_;
 	marker.header.stamp = ros::Time::now();
 	marker.ns = "beacons";
-    marker.action = visualization_msgs::Marker::ADD;
-
-
-    // Set the scale of the marker -- 1x1x1 here means 1m on a side
-    marker.scale.x = 0.05*SCALE_HEDGE;
-    marker.scale.y = 0.05*SCALE_HEDGE;
-    marker.scale.z = 0.02*SCALE_HEDGE;
-    // Set the color -- be sure to set alpha to something non-zero!
+	marker.action = visualization_msgs::Marker::ADD;
+	// Set the scale of the marker -- 1x1x1 here means 1m on a side
+	marker.scale.x = 0.05*SCALE_HEDGE;
+	marker.scale.y = 0.05*SCALE_HEDGE;
+	marker.scale.z = 0.02*SCALE_HEDGE;
+  // Set the color -- be sure to set alpha to something non-zero!
   if (is_hedge){
 		marker.type = visualization_msgs::Marker::ARROW;
 		marker.color.r = 0.0f;
@@ -121,7 +123,7 @@ void StateMachine::showRvizPos(Position p, int address, bool is_hedge){
 		marker.color.b = 0.0f;
 		marker.pose.orientation.z = sin(current_rad_ * 0.5);
 		marker.pose.orientation.w = cos(current_rad_ * 0.5);
-		marker.lifetime = ros::Duration(5); 
+		marker.lifetime = ros::Duration(5);
   }
   else{
 		marker.type = visualization_msgs::Marker::CUBE;
@@ -132,10 +134,9 @@ void StateMachine::showRvizPos(Position p, int address, bool is_hedge){
 		marker.pose.orientation.y = 0.0;
 		marker.pose.orientation.z = 0.0;
 		marker.pose.orientation.w = 1.0;
-		marker.lifetime = ros::Duration(0); //-forever- 
+		marker.lifetime = ros::Duration(0); //-forever-
 	}
-    marker.color.a = 1.0;
-	
+  marker.color.a = 1.0;
 	marker.id = address;
 	marker.pose.position.x = p.x;
 	marker.pose.position.y = p.y;
@@ -143,6 +144,7 @@ void StateMachine::showRvizPos(Position p, int address, bool is_hedge){
 	rviz_marker_publisher_.publish(marker);
 }
 
+// displays position of waypoint goals in rviz
 void StateMachine::showRvizMoveGoals(){
 	if (rviz_marker_publisher_.getNumSubscribers() < 1) return;
 
@@ -152,11 +154,11 @@ void StateMachine::showRvizMoveGoals(){
 	marker.header.stamp = ros::Time::now();
 	marker.ns = "basic_shapes";
 	marker.type = visualization_msgs::Marker::CUBE;
-	
+
 	// first delete all existing markers
 	marker.action = visualization_msgs::Marker::DELETEALL;
 	rviz_marker_publisher_.publish(marker);
-	
+
 	// Set the marker action.  Options are ADD, DELETE, and new in ROS Indigo: 3 (DELETEALL)
 	marker.action = visualization_msgs::Marker::ADD;
 
@@ -175,8 +177,8 @@ void StateMachine::showRvizMoveGoals(){
 	marker.color.g = 0.0f;
 	marker.color.b = 0.0f;
 	marker.color.a = 1.0;
-	marker.lifetime = ros::Duration(0); //-forever- 
-	
+	marker.lifetime = ros::Duration(0); //-forever-
+
 	for (int i=0; i<move_goals_.size(); i++){
 		marker.id = i;	// index used as marker address
 	  marker.pose.position.x = move_goals_[i].x;
@@ -195,19 +197,19 @@ void StateMachine::updateRvizMoveGoal(int address, int status){
 	marker.header.stamp = ros::Time::now();
 	marker.ns = "basic_shapes";
 	marker.type = visualization_msgs::Marker::CUBE;
-    marker.action = visualization_msgs::Marker::ADD;
+  marker.action = visualization_msgs::Marker::ADD;
 
-    // Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
+  // Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
 	marker.pose.orientation.x = 0.0;
 	marker.pose.orientation.y = 0.0;
 	marker.pose.orientation.z = 0.0;
 	marker.pose.orientation.w = 1.0;
 
-    // Set the scale of the marker -- 1x1x1 here means 1m on a side
-    marker.scale.x = 0.05*SCALE_HEDGE;
-    marker.scale.y = 0.05*SCALE_HEDGE;
-    marker.scale.z = 0.02*SCALE_HEDGE;
-    // Set the color -- be sure to set alpha to something non-zero!
+  // Set the scale of the marker -- 1x1x1 here means 1m on a side
+  marker.scale.x = 0.05*SCALE_HEDGE;
+  marker.scale.y = 0.05*SCALE_HEDGE;
+  marker.scale.z = 0.02*SCALE_HEDGE;
+  // Set the color -- be sure to set alpha to something non-zero!
   if (status==0){
 		marker.color.r = 0.5f;
 		marker.color.g = 0.5f;
@@ -218,9 +220,8 @@ void StateMachine::updateRvizMoveGoal(int address, int status){
 		marker.color.g = 0;
 		marker.color.b = 0.5f;
 	}
-    marker.color.a = 1.0;
-    marker.lifetime = ros::Duration(0); //-forever- 
-	
+  marker.color.a = 1.0;
+  marker.lifetime = ros::Duration(0); //-forever-
 	marker.id = address;
 	marker.pose.position.x = move_goals_[address].x;
 	marker.pose.position.y = move_goals_[address].y;
@@ -228,16 +229,17 @@ void StateMachine::updateRvizMoveGoal(int address, int status){
 	rviz_marker_publisher_.publish(marker);
 }
 
+// Unused- waypoint generation based on beacon positions
 void StateMachine::generateMoveGoals(){
 
 	/*-- naive rectangle implementation approach --
 	// First generate arbitrary rectangle from min/max points
 	auto it = beacons_pos_.cbegin();
 	it++;
-	
+
 	Position min_point = (*it).second;
 	Position max_point = (*it).second;
-	
+
 	for (; it!=beacons_pos_.cend(); it++){
 		if ((*it).second.x < min_point.x)
 			min_point.x = (*it).second.x;
@@ -254,7 +256,7 @@ void StateMachine::generateMoveGoals(){
 	max_x_bound_ = max_point.x - bound_padding_;
 	max_y_bound_ = max_point.y - bound_padding_;
 	ROS_INFO("Min and max bounds (%f,%f) (%f,%f)",min_x_bound_,min_y_bound_,max_x_bound_,max_y_bound_);
-	
+
 	// Generate zig-zag path from rectangle starting from left to right from bottom to top first
 	Position p;
 	bool is_going_up = true;
@@ -274,12 +276,12 @@ void StateMachine::generateMoveGoals(){
 		is_going_up = !is_going_up;
 	}
 	*/
-	
+
 	/*-- dynamic rectangle approach --*
 	//Construct up horizontal and vertical move vector from bottom-leftmost point
 	Position left_most_p = (*it).second;
 	Position bottom_most_p = (*it).second;
-	
+
 	for (; it!=beacons_pos_.cend(); it++){
 		if ((*it).second.x < min_point.x){
 			left_most_p.x = (*it).second.x;
@@ -291,7 +293,7 @@ void StateMachine::generateMoveGoals(){
 		}
 	}
 	Position min_point = (bottom_most_p.y<left_most_p.x) ? bottom_most_p : left_most_p;
-	
+
 	// x_v(ector) and y_v(ector) are assigned arbitrarily first to shortest and next shortest distance
 	// --Note--
 	// --x and y here refer to horizontal and vertical movement components here; not the coordinate system of the robot tf
@@ -324,11 +326,11 @@ void StateMachine::generateMoveGoals(){
 	//compute unit vectors
 	x_v = toUnitVector(x_v);
 	y_v = toUnitVector(y_v);
-	
+
 	//transform xy vectors to be perpendicular
 	float x_dot_y = x_v.x*y_v.x + x_v.y*y_v.y;
 	float angle = acosh(x_dot_y);
-	
+
 	/
 	ROS_INFO("Min and max positions (%f,%f) (%f,%f)",min_point.x,min_point.y,max_point.x,max_point.y);
 	min_x_bound_ = min_point.x + bound_padding_ * x_v.x;
@@ -336,7 +338,7 @@ void StateMachine::generateMoveGoals(){
 	max_x_bound_ = max_point.x - bound_padding_ * y_v.x;
 	max_y_bound_ = max_point.y - bound_padding_ * y_v.y;
 	ROS_INFO("Min and max bounds (%f,%f) (%f,%f)",min_x_bound_,min_y_bound_,max_x_bound_,max_y_bound_);
-	
+
 	// Generate zig-zag path from rectangle starting from left to right from bottom to top first
 	bool is_going_up = true;
 	for (min_point.x=min_x_bound_; min_point.x<=max_x_bound_; min_point.x+=x_step_){
@@ -358,18 +360,18 @@ void StateMachine::generateMoveGoals(){
 		ROS_INFO("Goal[%d]: (%f,%f)",i,move_goals_[i].x,move_goals_[i].y);
 	}
 	//*/
-	
-	
+
+
 	/*-- cross configuration --*/
-	
+
 	auto it = beacons_pos_.cbegin();
 	Position left_most_p = (*it).second;
 	Position bottom_most_p = (*it).second;
 	Position right_most_p = (*it).second;
 	Position top_most_p = (*it).second;
-		
+
 	it++;
-	
+
 	for (; it!=beacons_pos_.cend(); it++){
 		ROS_INFO("Comparing x with %f %f",(*it).second.x,left_most_p.x);
 		if ((*it).second.x < left_most_p.x){
@@ -386,25 +388,25 @@ void StateMachine::generateMoveGoals(){
 			top_most_p = (*it).second;
 		}
 	}
-	
+
 	ROS_INFO("BM(%f,%f) TM(%f,%f) RM(%f,%f) LM(%f,%f)",
 	bottom_most_p.x,bottom_most_p.y,
-	top_most_p.x,top_most_p.y, 
+	top_most_p.x,top_most_p.y,
 	right_most_p.x,right_most_p.y,
 	left_most_p.x,left_most_p.y);
-	
+
 	// Translate points to movebounds
 	left_most_p.x += bound_padding_;
 	bottom_most_p.y += bound_padding_;
 	right_most_p.x -= bound_padding_;
 	top_most_p.y -= bound_padding_;
-	
+
 	ROS_INFO("Bounded points--\nBM(%f,%f) TM(%f,%f) RM(%f,%f) LM(%f,%f)",
 	bottom_most_p.x,bottom_most_p.y,
-	top_most_p.x,top_most_p.y, 
+	top_most_p.x,top_most_p.y,
 	right_most_p.x,right_most_p.y,
 	left_most_p.x,left_most_p.y);
-	
+
 	// generate one goal in the middle of beacons
 	/*
 	Position p;
@@ -412,28 +414,28 @@ void StateMachine::generateMoveGoals(){
 	p.y = (top_most_p.y+bottom_most_p.y)/2;
 	move_goals_.push_back(p);
 	*/
-	
+
 	/*
 	Position y_v = getVector(top_most_p, bottom_most_p);
 	Position x_v = getVector(right_most_p, left_most_p);
 	ROS_INFO("x_v(%f,%f) y_v(%f,%f)",
 	x_v.x,x_v.y,
 	y_v.x,y_v.y);
-	
+
 	Position half_x_v = x_v;	//to compute start point from bottom_most_p
 	half_x_v.x = -(x_v.x)/2;
 	half_x_v.y = -(x_v.y)/2;
 	ROS_INFO("half_x_v(%f,%f)",
 	half_x_v.x,half_x_v.y);
-	
+
 	//compute unit vectors & compute x step
 	//x_v = mulScalarToVector(toUnitVector(x_v), x_step_);
 	//ROS_INFO("x_step(%f,%f)",
 	//x_v.x,x_v.y);
 	x_v.x=x_step_;
 	x_v.y=0;*/
-	
-	
+
+
 	Position p;
 	bool is_going_up = true;
 	for (p.x=left_most_p.x; p.x<=right_most_p.x; p.x+=x_step_){
@@ -451,8 +453,8 @@ void StateMachine::generateMoveGoals(){
 		}
 		is_going_up = !is_going_up;
 	}
-	
-	
+
+
 	/*/ Generate zig-zag path from rectangle starting from left to right from bottom to top first
 	Position p = addVectors(bottom_most_p, half_x_v);	//bottom left start point
 	int steps = distanceBetweenVectors(left_most_p,right_most_p)/x_step_;
@@ -475,6 +477,7 @@ void StateMachine::generateMoveGoals(){
 	showRvizMoveGoals();
 }
 
+// Calls orientation callibration service- moves robot slightly to set orientation based on beacon positions
 bool StateMachine::getOrientationEstimate(){
 	ros::service::waitForService("find_orientation", -1);
   if(ros::service::exists("find_orientation", true)){
@@ -485,6 +488,7 @@ bool StateMachine::getOrientationEstimate(){
   return false;
 }
 
+// shifts move goal index to next in array
 bool StateMachine::publishNextMoveGoal(){
 	current_goal_index_++;
 	if (current_goal_index_ >= move_goals_.size()){
@@ -496,6 +500,7 @@ bool StateMachine::publishNextMoveGoal(){
 	return true;
 }
 
+// file i/o operations to save/load/clear waypoints
 bool StateMachine::writeCurrentPosToFile(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res){
 	ROS_INFO("Writing to path: %s", file_path_.c_str());
 	std::ofstream myfile; //(file_path_);
@@ -504,7 +509,6 @@ bool StateMachine::writeCurrentPosToFile(std_srvs::Empty::Request &req, std_srvs
 	myfile.close();
 	return true;
 }
-
 bool StateMachine::clearPointsInFile(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res){
 	ROS_INFO("Deleting all waypoints");
 	move_goals_.clear();
@@ -513,7 +517,6 @@ bool StateMachine::clearPointsInFile(std_srvs::Empty::Request &req, std_srvs::Em
 	myfile.close();
 	return true;
 }
-
 bool StateMachine::readPointsFromFile(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res){
 	ROS_INFO("Reading waypoints from path: %s", file_path_.c_str());
 	move_goals_.clear();
@@ -534,7 +537,6 @@ bool StateMachine::readPointsFromFile(std_srvs::Empty::Request &req, std_srvs::E
 	showRvizMoveGoals();
 	return true;
 }
-
 bool StateMachine::readPointsFromFile(){
 	ROS_INFO("Reading waypoints from path: %s", file_path_.c_str());
 	move_goals_.clear();
@@ -556,11 +558,12 @@ bool StateMachine::readPointsFromFile(){
 	return true;
 }
 
+// returns angle difference from robot's position to a point (waypoint in this context)
 float StateMachine::angleDifferenceToPoint(Position p){
 	//ROS_INFO("POINT: %f,%f. ROBOT POSITION: %f,%f.",p.x,p.y,current_pos_.x,current_pos_.y);
 	p.x -= current_pos_.x;
 	p.y -= current_pos_.y;
-	
+
 	float angle = abs(atan2(p.y, p.x));
 	if (p.x<0) {
 		if (p.y<0) angle = -angle;
@@ -573,32 +576,32 @@ float StateMachine::angleDifferenceToPoint(Position p){
 	if (result > M_PI) result -= 2*M_PI;
 	else if (result < -M_PI) result += 2*M_PI;
 	/*if (result>M_PI){
-		result = -angle + current_rad_; 
+		result = -angle + current_rad_;
 	}
 	*/
-	
-	ROS_INFO("Relative angle from current orientation: %f", result);	
+	ROS_INFO("Relative angle from current orientation: %f", result);
 	return result;
 }
 
+// cmd_vel function to move robot towards goal
 void StateMachine::moveTowardsGoal(){
-	geometry_msgs::Twist cmd_vel_msg;	
+	geometry_msgs::Twist cmd_vel_msg;
 	float d = distanceBetweenVectors(current_pos_, move_goals_[current_goal_index_]);
-	
-	if (d > distance_threshold_){		
+
+	if (d > distance_threshold_){
 		//check robot direction with goal
 		float angle = angleDifferenceToPoint(move_goals_[current_goal_index_]);
-		
+
 		/*/--PI control
 		int error = angle / M_PI * 360;
 		float now = ros::Time::now().toSec();
-		
+
 		cmd_vel_msg.linear.x = max_linear_speed_;
 		cmd_vel_msg.angular.z = k_p_ * (float) error + k_i_ * error_sum_;
 		error_sum_ += error * (now - prev_time_);
 		prev_time_ = now;
 		/*/
-		
+
 		//rotate towards goal
 		if (angle > rotation_threshold_){
 			if (angle < rotation_falloff_){
@@ -637,7 +640,7 @@ void StateMachine::beaconsPosCallback(const marvelmind_nav::beacon_pos_a msg){
 	data.x = msg.x_m;
 	data.y = msg.y_m;
 	data.last_updated = ros::Time::now();
-	
+
 	if (!is_beacons_init_){
 		//beacons_pos_.insert (std::pair<int,Position>(msg.address,data));
 		beacons_pos_[msg.address] = data;
@@ -672,7 +675,7 @@ void StateMachine::currentPosCallback(const marvelmind_nav::hedge_pos_ang msg){
 			is_immobile_ = false;
 			stationary_pos_->x = current_pos_.x;
 			stationary_pos_->y = current_pos_.y;
-			stationary_pos_->last_updated = current_pos_.last_updated;			
+			stationary_pos_->last_updated = current_pos_.last_updated;
 		}
 		else if (current_pos_.last_updated - stationary_pos_->last_updated > immobile_timeout_){
 			is_immobile_ = true;
