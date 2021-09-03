@@ -17,6 +17,11 @@ Add the following lines into /boot/firmware/config.txt
 Video device shows up as /dev/video* after that.
 To verify the connection, use ``` qv4l2 ``` to check if the camera is connected and able to view image stream from there.
 
+** For RPI HQ Cam and running opencv2 with python script, second argument for VideoCapture is required
+```
+cap = cv2.VideoCapture('/dev/video0', cv2.CAP_V4L)
+```
+
 ### Using Witmotion IMU:
 Additional ECL library is required, can be installed using ``` sudo apt-get install ros-noetic-ecl-core ```
 (Need to remove from falcon_drivers CMakeList.txt and package.xml and src/initial_orientation_wit.cpp if want to purge from workspace)
@@ -25,8 +30,14 @@ Additional ECL library is required, can be installed using ``` sudo apt-get inst
 Roslaunch falcon_prog main.launch. This launches the following nodes. 
 - falcon_prog- main program handling the robot states 
 - marvelmind_nav- marvelmind beacon interface
-- falcon_orientation- orientation callibration service node
-- $(additional nodes for imu or camera)
+- falcon_orientation- orientation callibration service node (using witmotion imu)
+- wit_node: witmotion imu
+-----
+- To launch the motor drivers on falcon testbed platform (integrated motor driver): ``` rosrun falcon_drivers testbed_motor_driver.py ```
+- To launch the motor drivers on falcon fetch platform (roboclaw): ``` rosrun falcon_drivers motor_driver_speed.py ```
+- To launch the bno055 IMU on falcon fetch platform: ``` rosrun falcon_drivers imu.py ```
+- To launch the camera (ros usb_cam package): ``` rosrun falcon_cam usb_cam.launch ```
+- To launch the camera (opencv2 python script): ``` rosrun falcon_cam camera.py ```
 
 ```
 # FALCON PROG PARAMS:
